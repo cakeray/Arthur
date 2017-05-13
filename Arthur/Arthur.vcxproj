@@ -74,7 +74,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Users\rushi\Documents\Visual Studio 2015\Projects\Arthur\Arthur\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\rushi\Documents\Visual Studio 2015\Projects\Arthur\Arthur\imgui\include;C:\Users\rushi\Documents\Visual Studio 2015\Projects\Arthur\Arthur\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>C:\Users\rushi\Desktop\SOIL\projects\VC9\Debug;C:\Users\rushi\Documents\Visual Studio 2015\Projects\Arthur\Arthur\glew\lib\Release\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -115,10 +115,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="imgui\include\imgui.cpp" />
+    <ClCompile Include="imgui\include\imgui_draw.cpp" />
+    <ClCompile Include="imgui\include\imgui_impl_glfw_gl3.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="imgui\include\imconfig.h" />
+    <ClInclude Include="imgui\include\imgui.h" />
+    <ClInclude Include="imgui\include\imgui_impl_glfw_gl3.h" />
+    <ClInclude Include="imgui\include\imgui_internal.h" />
+    <ClInclude Include="imgui\include\stb_rect_pack.h" />
+    <ClInclude Include="imgui\include\stb_textedit.h" />
+    <ClInclude Include="imgui\include\stb_truetype.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Shader.h" />
