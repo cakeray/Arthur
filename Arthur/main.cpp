@@ -43,6 +43,14 @@ void Do_Movement();
 GLuint loadCubemap(vector<const GLchar*> faces);
 GLuint loadTexture(GLchar* path);
 
+// Transform variables
+GLfloat scaleFactor = 2.0f;
+glm::vec3 modelScale(2.0f);
+GLfloat rotationAngle;
+bool rotX = false;
+bool rotY = true;
+bool rotZ = false;
+
 // Camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool keys[1024];
@@ -203,8 +211,8 @@ int main()
         // Draw the loaded model
         glm::mat4 model;
         model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
-        //model = glm::rotate(model, (GLfloat)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(2.0f, 2.0f, 2.0f));	// It's a bit too big for our scene, so scale it down
+        model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
+        model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         ourModel.Draw(modelShader);
 
@@ -251,13 +259,22 @@ void guiSetup()
     int offset = 10;
     ImGui::SetWindowSize(ImVec2(guiWidth, screenHeight - 20));
     ImGui::SetWindowPos(ImVec2(screenWidth - guiWidth - offset, 0 + offset));
-
+    
     // Scene Setup
-    if (ImGui::CollapsingHeader("Scene Setup", 0))
+    if (ImGui::CollapsingHeader("Model Setup", 0))
     {
+        // Rotation and Scale settings
         if (ImGui::TreeNode("Transformation"))
         {
-            ImGui::Text("Hello, world!");
+            // Setting Scale
+            ImGui::SliderFloat("Scale", &scaleFactor, 0.0f, 5.0f);
+            modelScale = glm::vec3(scaleFactor);
+            
+            //Setting Rotation
+            ImGui::SliderFloat("Rotation", &rotationAngle, 0.0f, 6.0f);
+            ImGui::Checkbox("X Axis", &rotX);
+            ImGui::Checkbox("Y Axis", &rotY);
+            ImGui::Checkbox("Z Axis", &rotZ);
 
             ImGui::TreePop();
         }
@@ -268,10 +285,15 @@ void guiSetup()
                 ourModel.~Model();
                 ourModel.loadModel("models/shaderBall_small.obj");
             }
-            if (ImGui::Button("Dragon"))
+            if (ImGui::Button("Stanford Dragon"))
             {
                 ourModel.~Model();
                 ourModel.loadModel("models/dragon_small.obj");
+            }
+            if (ImGui::Button("Stanford Bunny"))
+            {
+                ourModel.~Model();
+                ourModel.loadModel("models/bunny_small.obj");
             }
 
             ImGui::TreePop();
