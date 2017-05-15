@@ -35,6 +35,7 @@ C++, OpenGL, GLSL, ImGUI
 GLuint screenWidth = 1280, screenHeight = 720;
 
 // Function prototypes
+void guiSetup();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -50,6 +51,15 @@ bool firstMouse = true;
 
 GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
+
+bool show_test_window = true;
+bool show_another_window = false;
+bool guiIsOpen = true;
+ImVec4 clear_color = ImColor(114, 144, 154);
+
+// Model
+Model ourModel;
+
 
 // The MAIN function, from here we start our application and run our Game loop
 int main()
@@ -156,16 +166,12 @@ int main()
     faces.push_back("images/front.jpg");
     GLuint cubemapTexture = loadCubemap(faces);
 
-    // Load models
-    Model ourModel("models/shaderBall_small.obj");
-    
-
+    // Load default model
+    //Model ourModel("models/shaderBall_small.obj");
+    ourModel.loadModel("models/shaderBall_small.obj");
+   
     // Draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    bool show_test_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImColor(114, 144, 154);
 
     // Game loop
     while (!glfwWindowShouldClose(window))
@@ -184,15 +190,7 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        {
-            static float f = 0.0f;
-            ImGui::Text("Hello, world!");
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-            ImGui::ColorEdit3("clear color", (float*)&clear_color);
-            if (ImGui::Button("Test Window")) show_test_window ^= 1;
-            if (ImGui::Button("Another Window")) show_another_window ^= 1;
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        }
+        guiSetup();
 
         modelShader.Use();   // <-- Don't forget this one!
         // Transformation matrices
@@ -239,6 +237,108 @@ int main()
 
     glfwTerminate();
     return 0;
+}
+
+
+void guiSetup()
+{
+    // Font loading
+    //ImGuiIO& io = ImGui::GetIO();
+    //io.Fonts->AddFontFromFileTTF("fonts/OpenSansRegular.ttf", 12);
+    //io.Fonts->GetTexDataAsAlpha8(); //GetTexDataAsRGBA32() or GetTexDataAsAlpha8()
+    
+    int guiWidth = 350;
+    int offset = 10;
+    ImGui::SetWindowSize(ImVec2(guiWidth, screenHeight - 20));
+    ImGui::SetWindowPos(ImVec2(screenWidth - guiWidth - offset, 0 + offset));
+
+    // Scene Setup
+    if (ImGui::CollapsingHeader("Scene Setup", 0))
+    {
+        if (ImGui::TreeNode("Transformation"))
+        {
+            ImGui::Text("Hello, world!");
+
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Model")) 
+        {
+            if (ImGui::Button("Shader Ball"))
+            {
+                ourModel.~Model();
+                ourModel.loadModel("models/shaderBall_small.obj");
+            }
+            if (ImGui::Button("Dragon"))
+            {
+                ourModel.~Model();
+                ourModel.loadModel("models/dragon_small.obj");
+            }
+
+            ImGui::TreePop();
+        }
+        
+        /*static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        if (ImGui::Button("Test Window")) show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);*/
+    }
+    // Shading Properties
+    if (ImGui::CollapsingHeader("Shading properties", 0))
+    {
+        static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        if (ImGui::Button("Test Window")) show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    }
+    // Textures
+    if (ImGui::CollapsingHeader("Textures", 0))
+    {
+        static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        if (ImGui::Button("Test Window")) show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    }
+    // Lighting 
+    if (ImGui::CollapsingHeader("Lighting", 0))
+    {
+        static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        if (ImGui::Button("Test Window")) show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    }
+    // Camera properties
+    if (ImGui::CollapsingHeader("Camera", 0))
+    {
+        static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
+        if (ImGui::Button("Test Window")) show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    }
+    // About
+    if (ImGui::CollapsingHeader("About", 0))
+    {
+        ImGui::Text("Arthur");
+        ImGui::Text("Real Time OpenGL Rendering");
+        ImGui::Text("using C++, OpenGL, GLSL, ImGui, Visual Studio 15");
+        ImGui::Text("Developed by Rushil Kekre");
+        ImGui::Text("2017");
+    }
+    
 }
 
 // Loads a cubemap texture from 6 individual texture faces
