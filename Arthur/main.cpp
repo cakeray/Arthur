@@ -18,6 +18,7 @@ C++, OpenGL, GLSL, ImGUI
 #include "Shader.h"
 #include "Camera.h"
 #include "Model.h"
+#include "Skybox.h"
 
 // GLM Mathemtics
 #include <glm/glm.hpp>
@@ -40,7 +41,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
-GLuint loadCubemap(vector<const GLchar*> faces);
+//GLuint loadCubemap(vector<const GLchar*> faces);
 GLuint loadTexture(GLchar* path);
 
 // Transform variables
@@ -50,6 +51,13 @@ GLfloat rotationAngle;
 bool rotX = false;
 bool rotY = true;
 bool rotZ = false;
+
+// Skybox
+//GLchar* skyboxPath = "images/lake";
+std::string skyboxPath;
+Skybox cubemap;
+GLuint cubemapTexture;
+//Skybox cubemap("images/lake", cubemapTexture);
 
 // Camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -164,15 +172,10 @@ int main()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
     glBindVertexArray(0);
-    // Cubemap (Skybox)
-    vector<const GLchar*> faces;
-    faces.push_back("images/right.jpg");
-    faces.push_back("images/left.jpg");
-    faces.push_back("images/top.jpg");
-    faces.push_back("images/bottom.jpg");
-    faces.push_back("images/back.jpg");
-    faces.push_back("images/front.jpg");
-    GLuint cubemapTexture = loadCubemap(faces);
+
+    //Setting skybox
+    skyboxPath = "images/lake";
+    cubemapTexture = cubemap.configureSkybox(skyboxPath);
 
     // Load default model
     //Model ourModel("models/shaderBall_small.obj");
@@ -298,7 +301,41 @@ void guiSetup()
 
             ImGui::TreePop();
         }
-        
+        if (ImGui::TreeNode("Skybox"))
+        {
+            if (ImGui::Button("Lake"))
+            {
+                //cubemap.~Skybox();
+                skyboxPath = "images/lake";
+                cubemapTexture = cubemap.configureSkybox(skyboxPath);
+            }
+            if (ImGui::Button("San Francisco"))
+            {
+                //cubemap.~Skybox();
+                skyboxPath = "images/san-francisco";
+                cubemapTexture = cubemap.configureSkybox(skyboxPath);
+            }
+            if (ImGui::Button("Rome"))
+            {
+                //cubemap.~Skybox();
+                skyboxPath = "images/rome";
+                cubemapTexture = cubemap.configureSkybox(skyboxPath);
+            }
+            if (ImGui::Button("Niagara"))
+            {
+                //cubemap.~Skybox();
+                skyboxPath = "images/niagara";
+                cubemapTexture = cubemap.configureSkybox(skyboxPath);
+            }
+            if (ImGui::Button("Stockholm"))
+            {
+                //cubemap.~Skybox();
+                skyboxPath = "images/stockholm";
+                cubemapTexture = cubemap.configureSkybox(skyboxPath);
+            }
+
+            ImGui::TreePop();
+        }
         /*static float f = 0.0f;
         ImGui::Text("Hello, world!");
         ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
@@ -359,42 +396,20 @@ void guiSetup()
         ImGui::Text("using C++, OpenGL, GLSL, ImGui, Visual Studio 15");
         ImGui::Text("Developed by Rushil Kekre");
         ImGui::Text("2017");
+
+        if (ImGui::TreeNode("Credits"))
+        {
+            ImGui::Text("Joey DeVries from learnopengl.com");
+            ImGui::Text("Dear ImGui library by Omar Cornut");
+            ImGui::Text("Skyboxes from Emil Persson");
+            ImGui::Text("Stanford Dragon and Bunny from the Stanford Computer Graphics Laboratory");
+
+            ImGui::TreePop();
+        }
     }
     
 }
 
-// Loads a cubemap texture from 6 individual texture faces
-// Order should be:
-// +X (right)
-// -X (left)
-// +Y (top)
-// -Y (bottom)
-// +Z (front)
-// -Z (back)
-GLuint loadCubemap(vector<const GLchar*> faces)
-{
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-
-    int width, height;
-    unsigned char* image;
-
-    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-    for (GLuint i = 0; i < faces.size(); i++)
-    {
-        image = SOIL_load_image(faces[i], &width, &height, 0, SOIL_LOAD_RGB);
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-        SOIL_free_image_data(image);
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-
-    return textureID;
-}
 
 GLuint loadTexture(GLchar* path)
 {
