@@ -1,48 +1,68 @@
-/*
-Real Time OpenGL Renderer
-By Rushil Kekre
-C++, OpenGL, GLSL, ImGUI
-*/
+// ARTHUR
+// Real Time OpenGL Renderer
+// By Rushil Kekre
+// C++, OpenGL, GLSL, ImGUI
 
-// Std. Includes
+// ================================
+
+// HEADER FILES
+
+// Standard C++ Headers
 #include <string>
 
-// GLEW
+// GLEW Header
 #define GLEW_STATIC
 #include <GL/glew.h>
 
-// GLFW
+// GLFW Header
 #include <GLFW/glfw3.h>
 
-// GL includes
+// Custom headers
 #include "Shader.h"
 #include "Camera.h"
 #include "Model.h"
 #include "Skybox.h"
 
-// GLM Mathemtics
+// GLM Mathemtics Header
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Image loading Libs
+// Image loading Header
 #include <SOIL.h>
 
-// GUI Libs
+// ImGUI Headers
 #include <imgui.h>
 #include <imgui_impl_glfw_gl3.h>
 
-// Properties
-GLuint screenWidth = 1280, screenHeight = 720;
+// ================================
 
-// Function prototypes
+// FUNCTION PROTOTYPES
+
+// guiSetup() is self explanatory
+// key_callback() to check for keyboard input and act accordingly
+// scroll_callback(), mouse_button_callback() and mouse_callback() are used to listen for mouse events
+// Do_Movement() to move around the screen if certain keys are pressed
+// loadTexture() is self explanatory
 void guiSetup();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
-//GLuint loadCubemap(vector<const GLchar*> faces);
 GLuint loadTexture(GLchar* path);
+
+
+// ================================
+
+// WINDOW PROPERTIES
+GLuint screenWidth = 1280, screenHeight = 720;
+
+// ================================
+
+// IMGUI GLOBAL VARIABLES AND DECLARATIONS
+
+int guiWidth = 350;
 
 // Transform variables
 GLfloat scaleFactor = 2.0f;
@@ -53,49 +73,53 @@ bool rotY = true;
 bool rotZ = false;
 
 // Skybox
-//GLchar* skyboxPath = "images/lake";
 std::string skyboxPath;
 Skybox cubemap;
 GLuint cubemapTexture;
-//Skybox cubemap("images/lake", cubemapTexture);
+
+
+// ================================
+
+// MAIN GLOBAL VARIABLES
 
 // Camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool keys[1024];
 GLfloat lastX = 400, lastY = 300;
 bool firstMouse = true;
+bool mouseClickActive;
 
+// Time
 GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
-
-bool show_test_window = true;
-bool show_another_window = false;
-bool guiIsOpen = true;
-ImVec4 clear_color = ImColor(114, 144, 154);
 
 // Model
 Model ourModel;
 
 
-// The MAIN function, from here we start our application and run our Game loop
+// ================================
+
+// MAIN FUNCTION
 int main()
 {
-    // Init GLFW
+    // Initializing GLFW, specifying version of OpenGL in Core profile
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", nullptr, nullptr); // Windowed
+    // Window creation
+    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Arthur", nullptr, nullptr); // Windowed
     glfwMakeContextCurrent(window);
 
-    // Set the required callback functions
+    // Setting callback functions for keyboard/mouse input
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
 
-    // Options
+    // Specifying input mode
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Initialize GLEW to setup the OpenGL Function pointers
@@ -111,11 +135,11 @@ int main()
     // Setup some OpenGL options
     glEnable(GL_DEPTH_TEST);
 
-    
+
     // List of shaders
-    Shader gridShader("shaders/gridTexture.vert","shaders/gridTexture.frag");
+    Shader gridShader("shaders/gridTexture.vert", "shaders/gridTexture.frag");
     Shader modelShader("shaders/model_loading.vert", "shaders/model_loading.frag");
-    Shader modelReflection("shaders/model_reflection.vert","shaders/model_reflection.frag");
+    Shader modelReflection("shaders/model_reflection.vert", "shaders/model_reflection.frag");
     Shader skyboxShader("shaders/skybox.vert", "shaders/skybox.frag");
 
     GLfloat skyboxVertices[] = {
@@ -173,16 +197,12 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
     glBindVertexArray(0);
 
-    //Setting skybox
+    //Setting skybox defaul path
     skyboxPath = "images/lake";
     cubemapTexture = cubemap.configureSkybox(skyboxPath);
 
     // Load default model
-    //Model ourModel("models/shaderBall_small.obj");
     ourModel.loadModel("models/shaderBall_small.obj");
-   
-    // Draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     // Game loop
     while (!glfwWindowShouldClose(window))
@@ -201,9 +221,10 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // GUI
         guiSetup();
 
-        modelShader.Use();   // <-- Don't forget this one!
+        modelShader.Use();
         // Transformation matrices
         glm::mat4 projection = glm::perspective(camera.Zoom, (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
@@ -232,14 +253,9 @@ int main()
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
-        glDepthFunc(GL_LESS); // Set depth function back to default
+        glDepthFunc(GL_LESS);
 
         // Rendering
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        //glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        //glClear(GL_COLOR_BUFFER_BIT);
         ImGui::Render();
 
         // Swap the buffers
@@ -253,16 +269,11 @@ int main()
 
 void guiSetup()
 {
-    // Font loading
-    //ImGuiIO& io = ImGui::GetIO();
-    //io.Fonts->AddFontFromFileTTF("fonts/OpenSansRegular.ttf", 12);
-    //io.Fonts->GetTexDataAsAlpha8(); //GetTexDataAsRGBA32() or GetTexDataAsAlpha8()
-    
-    int guiWidth = 350;
+    // GUI positioning
     int offset = 10;
     ImGui::SetWindowSize(ImVec2(guiWidth, screenHeight - 20));
     ImGui::SetWindowPos(ImVec2(screenWidth - guiWidth - offset, 0 + offset));
-    
+
     // Scene Setup
     if (ImGui::CollapsingHeader("Model Setup", 0))
     {
@@ -272,7 +283,7 @@ void guiSetup()
             // Setting Scale
             ImGui::SliderFloat("Scale", &scaleFactor, 0.0f, 5.0f);
             modelScale = glm::vec3(scaleFactor);
-            
+
             //Setting Rotation
             ImGui::SliderFloat("Rotation", &rotationAngle, 0.0f, 6.0f);
             ImGui::Checkbox("X Axis", &rotX);
@@ -281,8 +292,9 @@ void guiSetup()
 
             ImGui::TreePop();
         }
-        if (ImGui::TreeNode("Model")) 
+        if (ImGui::TreeNode("Model"))
         {
+            // Model options
             if (ImGui::Button("Shader Ball"))
             {
                 ourModel.~Model();
@@ -303,33 +315,29 @@ void guiSetup()
         }
         if (ImGui::TreeNode("Skybox"))
         {
+            // Skybox opions
             if (ImGui::Button("Lake"))
             {
-                //cubemap.~Skybox();
                 skyboxPath = "images/lake";
                 cubemapTexture = cubemap.configureSkybox(skyboxPath);
             }
             if (ImGui::Button("San Francisco"))
             {
-                //cubemap.~Skybox();
                 skyboxPath = "images/san-francisco";
                 cubemapTexture = cubemap.configureSkybox(skyboxPath);
             }
             if (ImGui::Button("Rome"))
             {
-                //cubemap.~Skybox();
                 skyboxPath = "images/rome";
                 cubemapTexture = cubemap.configureSkybox(skyboxPath);
             }
             if (ImGui::Button("Niagara"))
             {
-                //cubemap.~Skybox();
                 skyboxPath = "images/niagara";
                 cubemapTexture = cubemap.configureSkybox(skyboxPath);
             }
             if (ImGui::Button("Stockholm"))
             {
-                //cubemap.~Skybox();
                 skyboxPath = "images/stockholm";
                 cubemapTexture = cubemap.configureSkybox(skyboxPath);
             }
@@ -347,46 +355,22 @@ void guiSetup()
     // Shading Properties
     if (ImGui::CollapsingHeader("Shading properties", 0))
     {
-        static float f = 0.0f;
-        ImGui::Text("Hello, world!");
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&clear_color);
-        if (ImGui::Button("Test Window")) show_test_window ^= 1;
-        if (ImGui::Button("Another Window")) show_another_window ^= 1;
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
     }
     // Textures
     if (ImGui::CollapsingHeader("Textures", 0))
     {
-        static float f = 0.0f;
-        ImGui::Text("Hello, world!");
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&clear_color);
-        if (ImGui::Button("Test Window")) show_test_window ^= 1;
-        if (ImGui::Button("Another Window")) show_another_window ^= 1;
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
     }
     // Lighting 
     if (ImGui::CollapsingHeader("Lighting", 0))
     {
-        static float f = 0.0f;
-        ImGui::Text("Hello, world!");
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&clear_color);
-        if (ImGui::Button("Test Window")) show_test_window ^= 1;
-        if (ImGui::Button("Another Window")) show_another_window ^= 1;
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
     }
     // Camera properties
     if (ImGui::CollapsingHeader("Camera", 0))
     {
-        static float f = 0.0f;
-        ImGui::Text("Hello, world!");
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&clear_color);
-        if (ImGui::Button("Test Window")) show_test_window ^= 1;
-        if (ImGui::Button("Another Window")) show_another_window ^= 1;
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
     }
     // About
     if (ImGui::CollapsingHeader("About", 0))
@@ -407,7 +391,7 @@ void guiSetup()
             ImGui::TreePop();
         }
     }
-    
+
 }
 
 
@@ -462,24 +446,40 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         keys[key] = false;
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+// Checking to see if mouse button is pressed
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+        mouseClickActive = true;
+    else
+        mouseClickActive = false;
 
-    GLfloat xoffset = xpos - lastX;
-    GLfloat yoffset = lastY - ypos;
-
-    lastX = xpos;
-    lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
+// Mouse positions to control camera
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (xpos < screenWidth - guiWidth)
+    {
+        if (firstMouse)
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }
+
+        GLfloat xoffset = xpos - lastX;
+        GLfloat yoffset = lastY - ypos;
+
+        lastX = xpos;
+        lastY = ypos;
+
+        if (mouseClickActive)
+            camera.ProcessMouseMovement(xoffset, yoffset);
+    }
+}
+
+// Scrolling to control Zoom 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
