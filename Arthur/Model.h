@@ -131,12 +131,9 @@ private:
             vector.z = mesh->mVertices[i].z;
             vertex.Position = vector;
             // Normals
-            //vector.x = mesh->mNormals[i].x;
-            //vector.y = mesh->mNormals[i].y;
-            //vector.z = mesh->mNormals[i].z;
-            vector.x = 1;
-            vector.y = 1;
-            vector.z = 1;
+            vector.x = mesh->mNormals[i].x;
+            vector.y = mesh->mNormals[i].y;
+            vector.z = mesh->mNormals[i].z;
             vertex.Normal = vector;
             // Texture Coordinates
             if (mesh->mTextureCoords[0]) // Does the mesh contain texture coordinates?
