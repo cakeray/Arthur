@@ -3,21 +3,28 @@
 #ifndef SKYBOX_H
 #define SKYBOX_H
 
-#include<GL/glew.h> //for openGL headers
+//for openGL headers
+#include<GL/glew.h> 
+
 #include<string>
 #include<vector>
+
 // Image loading Libs
 #include <SOIL.h>
+
+// GLFW Header
+#include <GLFW/glfw3.h>
 
 class Skybox
 {
 public:
-    //GLuint cubemapTexture;
-    //Skybox(std::string path, GLuint &tex)
+    /*Skybox(GLuint &skyboxVAO, GLuint &skyboxVBO)
+    {
+        this->skyboxInit(skyboxVAO, skyboxVBO);
+    }*/
     Skybox()
     {
-        //cout << path;
-        //this->configureSkybox(path, tex);
+        //this->skyboxInit();
     }
     ~Skybox()
     {
@@ -57,6 +64,64 @@ public:
     }
 
 private:
+
+    void skyboxInit()
+    {
+        GLfloat skyboxVertices[] = {
+            // Positions          
+            -1.0f,  1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            -1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f
+        };
+        // Setup skybox VAO
+        GLuint skyboxVAO, skyboxVBO;
+        glGenVertexArrays(1, &skyboxVAO);
+        glGenBuffers(1, &skyboxVBO);
+        glBindVertexArray(skyboxVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+        glBindVertexArray(0);
+    }
 
     // Loads a cubemap texture from 6 individual texture faces
     // Order should be:
