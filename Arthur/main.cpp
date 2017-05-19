@@ -62,20 +62,32 @@ GLuint screenWidth = 1280, screenHeight = 720;
 
 // IMGUI GLOBAL VARIABLES AND DECLARATIONS
 
-int guiWidth = 350;
+int guiWidth = 400;
 
 // Transform variables
 GLfloat scaleFactor = 2.0f;
 glm::vec3 modelScale(2.0f);
-GLfloat rotationAngle;
+GLfloat rotationAngle = 0.2;
 bool rotX = false;
 bool rotY = true;
 bool rotZ = false;
 
 // Skybox
+GLuint skyboxVAO, skyboxVBO;
 std::string skyboxPath;
+//Skybox cubemap(skyboxVAO,skyboxVBO);
 Skybox cubemap;
 GLuint cubemapTexture;
+
+// Shading
+//ImVec4 objectColor = ImColor(175, 175, 175);
+ImVec4 ambientMaterial = ImColor(0, 0, 0);
+ImVec4 diffuseMaterial = ImColor(255, 255, 255);
+ImVec4 specularMaterial = ImColor(127, 127, 127);
+float shineAmount = 0.25;
+
+// Lighting
+ImVec4 lightColor = ImColor(255, 255, 255);
 
 
 // ================================
@@ -95,6 +107,10 @@ GLfloat lastFrame = 0.0f;
 
 // Model
 Model ourModel;
+
+// Light
+glm::vec3 lightPos(0.0f, 1.0f, 2.5f);
+GLfloat lightIntensity = 0.5f;
 
 
 // ================================
@@ -187,7 +203,7 @@ int main()
         1.0f, -1.0f,  1.0f
     };
     // Setup skybox VAO
-    GLuint skyboxVAO, skyboxVBO;
+    //GLuint skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
     glBindVertexArray(skyboxVAO);
@@ -198,7 +214,7 @@ int main()
     glBindVertexArray(0);
 
     //Setting skybox defaul path
-    skyboxPath = "images/lake";
+    skyboxPath = "images/san-francisco";
     cubemapTexture = cubemap.configureSkybox(skyboxPath);
 
     // Load default model
@@ -231,10 +247,19 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniform3f(glGetUniformLocation(modelShader.Program, "cameraPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "objectColor"), objectColor.x, objectColor.y, objectColor.z);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "lightColor"), lightColor.x, lightColor.y, lightColor.z);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+        //glUniform1f(glGetUniformLocation(modelShader.Program, "lightIntensity"), lightIntensity * 10.0f);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "material.ambient"), ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "material.diffuse"), diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
+        glUniform3f(glGetUniformLocation(modelShader.Program, "material.specular"), specularMaterial.x, specularMaterial.y, specularMaterial.z);
+        glUniform1f(glGetUniformLocation(modelShader.Program, "material.shininess"), shineAmount);
 
         // Draw the loaded model
         glm::mat4 model;
-        model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
+        model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
         model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
         model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -275,7 +300,7 @@ void guiSetup()
     ImGui::SetWindowPos(ImVec2(screenWidth - guiWidth - offset, 0 + offset));
 
     // Scene Setup
-    if (ImGui::CollapsingHeader("Model Setup", 0))
+    if (ImGui::CollapsingHeader("Scene Setup", 0))
     {
         // Rotation and Scale settings
         if (ImGui::TreeNode("Transformation"))
@@ -355,17 +380,50 @@ void guiSetup()
     // Shading Properties
     if (ImGui::CollapsingHeader("Shading properties", 0))
     {
+        if (ImGui::TreeNode("Shader"))
+        {
+            //ImGui::ColorEdit3("Object Color", (float*)&objectColor);
+            ImGui::ColorEdit3("Ambient", (float*)&ambientMaterial);
+            ImGui::ColorEdit3("Diffuse", (float*)&diffuseMaterial);
+            ImGui::ColorEdit3("Specular", (float*)&specularMaterial);
+            ImGui::SliderFloat("Shininess", &shineAmount, 0.0f, 32.0f);
+            
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Preset Materials"))
+        {
+            if (ImGui::Button("Jade"))
+            {
+                ambientMaterial = ImColor(34, 57, 40);
+                diffuseMaterial = ImColor(138, 227, 161);
+                specularMaterial = ImColor(81,81,81);
+                shineAmount = 0.1;
+            }
+            if (ImGui::Button("Obsidian"))
+            {
+                ambientMaterial = ImColor(14, 13, 17);
+                diffuseMaterial = ImColor(47, 43, 57);
+                specularMaterial = ImColor(85, 84, 88);
+                shineAmount = 0.3;
+            }
+            if (ImGui::Button("Bronze"))
+            {
+                ambientMaterial = ImColor(54, 33, 14);
+                diffuseMaterial = ImColor(182, 109, 46);
+                specularMaterial = ImColor(100, 69, 43);
+                shineAmount = 0.2;
+            }
 
-    }
-    // Textures
-    if (ImGui::CollapsingHeader("Textures", 0))
-    {
+            ImGui::TreePop();
+        }
 
     }
     // Lighting 
     if (ImGui::CollapsingHeader("Lighting", 0))
     {
-
+        ImGui::ColorEdit3("Light Color", (float*)&lightColor);
+        ImGui::SliderFloat3("Light Position", (float*)&lightPos, 0.0f, 10.0f);
+        //ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 1.0f);
     }
     // Camera properties
     if (ImGui::CollapsingHeader("Camera", 0))
