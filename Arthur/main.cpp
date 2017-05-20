@@ -111,6 +111,9 @@ Model ourModel;
 // Light
 glm::vec3 lightPos(0.0f, 1.0f, 2.5f);
 GLfloat lightIntensity = 0.5f;
+glm::vec3 lightDirection(1.0f, 3.0f, 3.0f);
+int lightMode = 1;
+int attenuationMode = 1;
 
 
 // ================================
@@ -242,27 +245,38 @@ int main()
 
         modelShader.Use();
         // Transformation matrices
+        glm::mat4 model;
+        model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
+        model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
+        model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
+        glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glm::mat4 projection = glm::perspective(camera.Zoom, (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+        // Draw the loaded model
+        
         glUniform3f(glGetUniformLocation(modelShader.Program, "cameraPos"), camera.Position.x, camera.Position.y, camera.Position.z);
         //glUniform3f(glGetUniformLocation(modelShader.Program, "objectColor"), objectColor.x, objectColor.y, objectColor.z);
         glUniform3f(glGetUniformLocation(modelShader.Program, "lightColor"), lightColor.x, lightColor.y, lightColor.z);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+        if (lightMode == 1)
+        {
+            glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+            glUniform1f(glGetUniformLocation(modelShader.Program, "light.constant"), 1.0f);
+            glUniform1f(glGetUniformLocation(modelShader.Program, "light.linear"), 0.09);
+            glUniform1f(glGetUniformLocation(modelShader.Program, "light.quadratic"), 0.032);
+        }
+        if(lightMode == 2)
+            glUniform3f(glGetUniformLocation(modelShader.Program, "light.direction"), -lightDirection.x, -lightDirection.y, -lightDirection.z);
         //glUniform1f(glGetUniformLocation(modelShader.Program, "lightIntensity"), lightIntensity * 10.0f);
+        glUniform1i(glGetUniformLocation(modelShader.Program, "lightMode"), lightMode);
         glUniform3f(glGetUniformLocation(modelShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
         glUniform3f(glGetUniformLocation(modelShader.Program, "material.ambient"), ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
         glUniform3f(glGetUniformLocation(modelShader.Program, "material.diffuse"), diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
         glUniform3f(glGetUniformLocation(modelShader.Program, "material.specular"), specularMaterial.x, specularMaterial.y, specularMaterial.z);
         glUniform1f(glGetUniformLocation(modelShader.Program, "material.shininess"), shineAmount);
 
-        // Draw the loaded model
-        glm::mat4 model;
-        model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
-        model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
-        model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
-        glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         ourModel.Draw(modelShader);
 
         // Draw skybox as last
@@ -422,8 +436,19 @@ void guiSetup()
     if (ImGui::CollapsingHeader("Lighting", 0))
     {
         ImGui::ColorEdit3("Light Color", (float*)&lightColor);
-        ImGui::SliderFloat3("Light Position", (float*)&lightPos, 0.0f, 10.0f);
-        //ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 1.0f);
+        
+        ImGui::RadioButton("Point Light", &lightMode, 1);
+        ImGui::RadioButton("Directional Light", &lightMode, 2);
+        if (lightMode == 1)
+        {
+            ImGui::SliderFloat3("Light Position", (float*)&lightPos, 0.0f, 10.0f);
+        }
+        if (lightMode == 2)
+        {
+            ImGui::Text("Values will be negated before passing to shader");
+            ImGui::SliderFloat3("Light Direction", (float*)&lightDirection, 0.0f, 10.0f);
+        }
+
     }
     // Camera properties
     if (ImGui::CollapsingHeader("Camera", 0))
