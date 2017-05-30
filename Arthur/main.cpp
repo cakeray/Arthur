@@ -50,13 +50,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
+void RenderQuad();
 GLuint loadTexture(GLchar* path);
 
 
 // ================================
 
 // WINDOW PROPERTIES
-GLuint screenWidth = 1280, screenHeight = 720;
+GLuint SCREEN_WIDTH = 1280, SCREEN_HEIGHT = 720;
 
 // ================================
 
@@ -107,6 +108,7 @@ GLfloat lastFrame = 0.0f;
 
 // Model
 Model ourModel;
+GLboolean blinn = false;
 
 // Light
 glm::vec3 lightPos(0.0f, 1.0f, 2.5f);
@@ -114,6 +116,7 @@ GLfloat lightIntensity = 0.5f;
 glm::vec3 lightDirection(1.0f, 3.0f, 3.0f);
 int lightMode = 1;
 int attenuationMode = 1;
+
 
 
 // ================================
@@ -129,7 +132,7 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     // Window creation
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Arthur", nullptr, nullptr); // Windowed
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Arthur", nullptr, nullptr); // Windowed
     glfwMakeContextCurrent(window);
 
     // Setting callback functions for keyboard/mouse input
@@ -149,7 +152,7 @@ int main()
     ImGui_ImplGlfwGL3_Init(window, true);
 
     // Define the viewport dimensions
-    glViewport(0, 0, screenWidth, screenHeight);
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Setup some OpenGL options
     glEnable(GL_DEPTH_TEST);
@@ -160,6 +163,36 @@ int main()
     Shader modelShader("shaders/model_loading.vert", "shaders/model_loading.frag");
     Shader modelReflection("shaders/model_reflection.vert", "shaders/model_reflection.frag");
     Shader skyboxShader("shaders/skybox.vert", "shaders/skybox.frag");
+    Shader floorShader("shaders/floorShader.vert", "shaders/floorShader.frag");
+    Shader modelGeometryPass("shaders/model_geometry.vert", "shaders/model_geometry.frag");
+    Shader modelLightingPass("shaders/model_lighting.vert", "shaders/model_lighting.frag");
+
+    GLfloat planeVertices[] = {
+        // Positions          // Normals         // Texture Coords
+        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 0.0f,
+        -1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 5.0f,
+
+        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 0.0f,
+        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 5.0f,
+        1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 5.0f
+    };
+    // Setup plane VAO
+    GLuint planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+    glBindVertexArray(0);
+    GLuint floorTexture = loadTexture("images/checkerboard.jpg");
+
 
     GLfloat skyboxVertices[] = {
         // Positions          
@@ -216,12 +249,82 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
     glBindVertexArray(0);
 
-    //Setting skybox defaul path
+    //Setting skybox default path
     skyboxPath = "images/san-francisco";
     cubemapTexture = cubemap.configureSkybox(skyboxPath);
 
+    // Setting samplers
+    modelLightingPass.Use();
+    glUniform1i(glGetUniformLocation(modelLightingPass.Program,"gPosition"),0);
+    glUniform1i(glGetUniformLocation(modelLightingPass.Program, "gNormal"),1);
+    glUniform1i(glGetUniformLocation(modelLightingPass.Program, "gAlbedoSpec"),2);
+
     // Load default model
     ourModel.loadModel("models/shaderBall_small.obj");
+    
+    // Model positon
+    //glm::vec3 objectPosition(0.0, 0.0, 0.0);
+    std::vector<glm::vec3> objectPositions;
+    objectPositions.push_back(glm::vec3(-0.5, -1.0, 0.0));
+    // - Colors
+    const GLuint NR_LIGHTS = 32;
+    std::vector<glm::vec3> lightPositions;
+    std::vector<glm::vec3> lightColors;
+    srand(13);
+    lightPositions.push_back(glm::vec3(2.0, 2.0, 2.0));
+    lightPositions.push_back(glm::vec3(-2.0, 2.0, 2.0));
+    lightPositions.push_back(glm::vec3(0.0, 2.0, -2.0));
+    lightColors.push_back(glm::vec3(1.0, 1.0, 1.0));
+    lightColors.push_back(glm::vec3(1.0, 1.0, 1.0));
+    lightColors.push_back(glm::vec3(1.0, 1.0, 1.0));
+    
+
+    // Set up G-Buffer
+    // 3 textures:
+    // 1. Positions (RGB)
+    // 2. Color (RGB) + Specular (A)
+    // 3. Normals (RGB) 
+    GLuint gBuffer;
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+    GLuint gPosition, gNormal, gAlbedoSpec;
+    // - Position color buffer
+    glGenTextures(1, &gPosition);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    // - Normal color buffer
+    glGenTextures(1, &gNormal);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+    // - Color + Specular color buffer
+    glGenTextures(1, &gAlbedoSpec);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+    // - Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+    // - Create and attach depth buffer (renderbuffer)
+    GLuint rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    // - Finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+
 
     // Game loop
     while (!glfwWindowShouldClose(window))
@@ -237,48 +340,106 @@ int main()
         ImGui_ImplGlfwGL3_NewFrame();
 
         // Clear the colorbuffer
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        /*glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
 
         // GUI
         guiSetup();
 
-        modelShader.Use();
-        // Transformation matrices
-        glm::mat4 model;
-        model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
-        model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
-        model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
-        glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glm::mat4 projection = glm::perspective(camera.Zoom, (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
-
-        // Draw the loaded model
         
-        glUniform3f(glGetUniformLocation(modelShader.Program, "cameraPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "objectColor"), objectColor.x, objectColor.y, objectColor.z);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "lightColor"), lightColor.x, lightColor.y, lightColor.z);
-        if (lightMode == 1)
+        // Deferred Rendering
+        // 1. Geometry Pass: render scene's geometry/color data into gbuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model;
+        modelGeometryPass.Use();
+        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        model = glm::mat4();
+        model = glm::translate(model, objectPositions[0]);
+        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        ourModel.Draw(modelGeometryPass);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 2. Lighting Pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        modelLightingPass.Use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPosition);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+        // Also send light relevant uniforms
+        //glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[0].Position").c_str()), 1, &lightPosition);
+        for (GLuint i = 0; i < lightPositions.size(); i++)
         {
-            glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
-            glUniform1f(glGetUniformLocation(modelShader.Program, "light.constant"), 1.0f);
-            glUniform1f(glGetUniformLocation(modelShader.Program, "light.linear"), 0.09);
-            glUniform1f(glGetUniformLocation(modelShader.Program, "light.quadratic"), 0.032);
+            glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Position").c_str()), 1, &lightPositions[i][0]);
+            glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Color").c_str()), 1, &lightColors[i][0]);
+            // Update attenuation parameters and calculate radius
+            const GLfloat constant = 1.0; // Note that we don't send this to the shader, we assume it is always 1.0 (in our case)
+            const GLfloat linear = 0.7;
+            const GLfloat quadratic = 1.8;
+            glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Linear").c_str()), linear);
+            glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Quadratic").c_str()), quadratic);
         }
-        if(lightMode == 2)
-            glUniform3f(glGetUniformLocation(modelShader.Program, "light.direction"), -lightDirection.x, -lightDirection.y, -lightDirection.z);
-        //glUniform1f(glGetUniformLocation(modelShader.Program, "lightIntensity"), lightIntensity * 10.0f);
-        glUniform1i(glGetUniformLocation(modelShader.Program, "lightMode"), lightMode);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "material.ambient"), ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "material.diffuse"), diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
-        glUniform3f(glGetUniformLocation(modelShader.Program, "material.specular"), specularMaterial.x, specularMaterial.y, specularMaterial.z);
-        glUniform1f(glGetUniformLocation(modelShader.Program, "material.shininess"), shineAmount);
+        glUniform3fv(glGetUniformLocation(modelLightingPass.Program, "viewPos"), 1, &camera.Position[0]);
+        // Finally render quad
+        RenderQuad();
 
-        ourModel.Draw(modelShader);
+        
 
+        //modelShader.Use();
+        //// Draw the loaded model
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "cameraPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        ////glUniform3f(glGetUniformLocation(modelShader.Program, "objectColor"), objectColor.x, objectColor.y, objectColor.z);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "lightColor"), lightColor.x, lightColor.y, lightColor.z);
+        //if (lightMode == 1)
+        //{
+        //    glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.constant"), 1.0f);
+        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.linear"), 0.09);
+        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.quadratic"), 0.032);
+        //}
+        //if(lightMode == 2)
+        //    glUniform3f(glGetUniformLocation(modelShader.Program, "light.direction"), -lightDirection.x, -lightDirection.y, -lightDirection.z);
+        ////glUniform1f(glGetUniformLocation(modelShader.Program, "lightIntensity"), lightIntensity * 10.0f);
+        //glUniform1i(glGetUniformLocation(modelShader.Program, "lightMode"), lightMode);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.ambient"), ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.diffuse"), diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
+        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.specular"), specularMaterial.x, specularMaterial.y, specularMaterial.z);
+        //glUniform1f(glGetUniformLocation(modelShader.Program, "material.shininess"), shineAmount);
+
+        //// Transformation matrices
+        //glm::mat4 model;
+        //model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
+        //model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
+        //model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
+        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        //glm::mat4 projection = glm::perspective(camera.Zoom, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        //glm::mat4 view = camera.GetViewMatrix();
+        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+        //ourModel.Draw(modelShader);
+
+
+        // Floor plane
+        /*
+        //Draw the grid/floor plane
+        floorShader.Use();
+        glUniform1i(glGetUniformLocation(floorShader.Program, "blinn"), blinn);
+        // Floor
+        glBindVertexArray(planeVAO);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        */
+
+        
         // Draw skybox as last
         glDepthFunc(GL_LEQUAL);  // Change depth function so depth test passes when values are equal to depth buffer's content
         skyboxShader.Use();
@@ -293,6 +454,7 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
+        
 
         // Rendering
         ImGui::Render();
@@ -310,8 +472,8 @@ void guiSetup()
 {
     // GUI positioning
     int offset = 10;
-    ImGui::SetWindowSize(ImVec2(guiWidth, screenHeight - 20));
-    ImGui::SetWindowPos(ImVec2(screenWidth - guiWidth - offset, 0 + offset));
+    ImGui::SetWindowSize(ImVec2(guiWidth, SCREEN_WIDTH - 20));
+    ImGui::SetWindowPos(ImVec2(SCREEN_WIDTH - guiWidth - offset, 0 + offset));
 
     // Scene Setup
     if (ImGui::CollapsingHeader("Scene Setup", 0))
@@ -478,6 +640,38 @@ void guiSetup()
 }
 
 
+// RenderQuad() Renders a 1x1 quad in NDC, best used for framebuffer color targets
+// and post-processing effects.
+GLuint quadVAO = 0;
+GLuint quadVBO;
+void RenderQuad()
+{
+    if (quadVAO == 0)
+    {
+        GLfloat quadVertices[] = {
+            // Positions        // Texture Coords
+            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // Setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+
+
 GLuint loadTexture(GLchar* path)
 {
     // Generate texture ID and load texture data 
@@ -542,7 +736,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 // Mouse positions to control camera
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    if (xpos < screenWidth - guiWidth)
+    if (xpos < SCREEN_WIDTH - guiWidth)
     {
         if (firstMouse)
         {
