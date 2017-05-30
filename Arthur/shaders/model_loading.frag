@@ -36,12 +36,14 @@ uniform vec3 lightPos;
 uniform vec3 lightIntensity;
 uniform vec3 viewPos;
 uniform int lightMode;
+//uniform mat4 view;
 
 void main()
 {    
+	// vec3 updatedLightPos = lightPos * view;
     vec3 norm = normalize(Normal);
     vec3 lightDir;
-    // float distance, attenuation;
+
     if(lightMode == 1)
     {
     	lightDir = normalize(lightPos - FragPos);
