@@ -18,13 +18,9 @@
 class Skybox
 {
 public:
-    /*Skybox(GLuint &skyboxVAO, GLuint &skyboxVBO)
-    {
-        this->skyboxInit(skyboxVAO, skyboxVBO);
-    }*/
     Skybox()
     {
-        //this->skyboxInit();
+
     }
     ~Skybox()
     {
