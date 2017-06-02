@@ -255,9 +255,9 @@ int main()
 
     // Setting samplers
     modelLightingPass.Use();
-    glUniform1i(glGetUniformLocation(modelLightingPass.Program,"gPosition"),0);
-    glUniform1i(glGetUniformLocation(modelLightingPass.Program, "gNormal"),1);
-    glUniform1i(glGetUniformLocation(modelLightingPass.Program, "gAlbedoSpec"),2);
+    modelLightingPass.setInt("gPosition", 0);
+    modelLightingPass.setInt("gNormal", 1);
+    modelLightingPass.setInt("gAlbedoSpec", 2);
 
     // Load default model
     ourModel.loadModel("models/shaderBall_small.obj");
@@ -355,11 +355,11 @@ int main()
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model;
         modelGeometryPass.Use();
-        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        modelGeometryPass.setMat4("projection", projection);
+        modelGeometryPass.setMat4("view", view);
         model = glm::mat4();
         model = glm::translate(model, objectPositions[0]);
-        glUniformMatrix4fv(glGetUniformLocation(modelGeometryPass.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        modelGeometryPass.setMat4("model", model);
         ourModel.Draw(modelGeometryPass);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
