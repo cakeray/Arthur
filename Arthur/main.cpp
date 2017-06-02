@@ -90,6 +90,9 @@ float shineAmount = 0.25;
 // Lighting
 ImVec4 lightColor = ImColor(255, 255, 255);
 
+// Rendering
+bool deferredRendering = true;
+bool forwardRendering = false;
 
 // ================================
 
@@ -325,8 +328,9 @@ int main()
 
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
+    // ================================
 
-    // Game loop
+    // GAME LOOP
     while (!glfwWindowShouldClose(window))
     {
         // Set frame time
@@ -340,122 +344,120 @@ int main()
         ImGui_ImplGlfwGL3_NewFrame();
 
         // Clear the colorbuffer
-        /*glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 projection;
+        projection = glm::perspective(camera.Zoom, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
+        model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
+        model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
 
         // GUI
         guiSetup();
 
-        
-        // Deferred Rendering
-        // 1. Geometry Pass: render scene's geometry/color data into gbuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glm::mat4 projection = glm::perspective(camera.Zoom, (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 model;
-        modelGeometryPass.Use();
-        modelGeometryPass.setMat4("projection", projection);
-        modelGeometryPass.setMat4("view", view);
-        model = glm::mat4();
-        model = glm::translate(model, objectPositions[0]);
-        modelGeometryPass.setMat4("model", model);
-        ourModel.Draw(modelGeometryPass);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        // 2. Lighting Pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        modelLightingPass.Use();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gPosition);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, gNormal);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-        // Also send light relevant uniforms
-        //glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[0].Position").c_str()), 1, &lightPosition);
-        for (GLuint i = 0; i < lightPositions.size(); i++)
+        if (deferredRendering) 
         {
-            glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Position").c_str()), 1, &lightPositions[i][0]);
-            glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Color").c_str()), 1, &lightColors[i][0]);
-            // Update attenuation parameters and calculate radius
-            const GLfloat constant = 1.0; // Note that we don't send this to the shader, we assume it is always 1.0 (in our case)
-            const GLfloat linear = 0.7;
-            const GLfloat quadratic = 1.8;
-            glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Linear").c_str()), linear);
-            glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Quadratic").c_str()), quadratic);
+            // Deferred Rendering
+            // 1. Geometry Pass: render scene's geometry/color data into gbuffer
+            glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            modelGeometryPass.Use();
+            modelGeometryPass.setMat4("projection", projection);
+            modelGeometryPass.setMat4("view", view);
+            modelGeometryPass.setMat4("model", model);
+            ourModel.Draw(modelGeometryPass);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // 2. Lighting Pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            modelLightingPass.Use();
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, gPosition);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, gNormal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+            // Also send light relevant uniforms
+            for (GLuint i = 0; i < lightPositions.size(); i++)
+            {
+                glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Position").c_str()), 1, &lightPositions[i][0]);
+                glUniform3fv(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Color").c_str()), 1, &lightColors[i][0]);
+                // Update attenuation parameters and calculate radius
+                const GLfloat constant = 1.0; // Note that we don't send this to the shader, we assume it is always 1.0 (in our case)
+                const GLfloat linear = 0.7;
+                const GLfloat quadratic = 1.8;
+                glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Linear").c_str()), linear);
+                glUniform1f(glGetUniformLocation(modelLightingPass.Program, ("lights[" + std::to_string(i) + "].Quadratic").c_str()), quadratic);
+            }
+            glUniform3fv(glGetUniformLocation(modelLightingPass.Program, "viewPos"), 1, &camera.Position[0]);
+            // Finally render quad
+            RenderQuad();
+
         }
-        glUniform3fv(glGetUniformLocation(modelLightingPass.Program, "viewPos"), 1, &camera.Position[0]);
-        // Finally render quad
-        RenderQuad();
+        else if(forwardRendering)
+        {
+            modelShader.Use();
+            // Draw the loaded model
+            modelShader.setVec3("cameraPos", camera.Position);
+            modelShader.setVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
+            if (lightMode == 1)
+            {
+                modelShader.setVec3("lightPos", lightPos);
+                modelShader.setFloat("light.constant", 1.0);
+                modelShader.setFloat("light.linear", 0.09);
+                modelShader.setFloat("light.quadratic", 0.032);
+            }
+            if (lightMode == 2)
+                modelShader.setVec3("light.direction", -lightDirection);
+            modelShader.setInt("lightMode", lightMode);
+            modelShader.setVec3("viewPos", camera.Position);
+            modelShader.setVec3("material.ambient", ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
+            modelShader.setVec3("material.diffuse", diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
+            modelShader.setVec3("material.specular", specularMaterial.x, specularMaterial.y, specularMaterial.z);
+            modelShader.setFloat("material.shininess", shineAmount);
 
+            // Transformation matrices
+            glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+            ourModel.Draw(modelShader);
+
+
+            // Floor plane
+            /*
+            //Draw the grid/floor plane
+            floorShader.Use();
+            glUniform1i(glGetUniformLocation(floorShader.Program, "blinn"), blinn);
+            // Floor
+            glBindVertexArray(planeVAO);
+            glBindTexture(GL_TEXTURE_2D, floorTexture);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(0);
+            */
+
+
+            // Draw skybox as last
+            glDepthFunc(GL_LEQUAL);  // Change depth function so depth test passes when values are equal to depth buffer's content
+            skyboxShader.Use();
+            view = glm::mat4(glm::mat3(camera.GetViewMatrix()));	// Remove any translation component of the view matrix
+            glUniformMatrix4fv(glGetUniformLocation(skyboxShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(skyboxShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            // skybox cube
+            glBindVertexArray(skyboxVAO);
+            glActiveTexture(GL_TEXTURE0);
+            glUniform1i(glGetUniformLocation(modelShader.Program, "skybox"), 0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
+            glDepthFunc(GL_LESS);
+
+        }
         
-
-        //modelShader.Use();
-        //// Draw the loaded model
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "cameraPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-        ////glUniform3f(glGetUniformLocation(modelShader.Program, "objectColor"), objectColor.x, objectColor.y, objectColor.z);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "lightColor"), lightColor.x, lightColor.y, lightColor.z);
-        //if (lightMode == 1)
-        //{
-        //    glUniform3f(glGetUniformLocation(modelShader.Program, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
-        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.constant"), 1.0f);
-        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.linear"), 0.09);
-        //    glUniform1f(glGetUniformLocation(modelShader.Program, "light.quadratic"), 0.032);
-        //}
-        //if(lightMode == 2)
-        //    glUniform3f(glGetUniformLocation(modelShader.Program, "light.direction"), -lightDirection.x, -lightDirection.y, -lightDirection.z);
-        ////glUniform1f(glGetUniformLocation(modelShader.Program, "lightIntensity"), lightIntensity * 10.0f);
-        //glUniform1i(glGetUniformLocation(modelShader.Program, "lightMode"), lightMode);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.ambient"), ambientMaterial.x, ambientMaterial.y, ambientMaterial.z);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.diffuse"), diffuseMaterial.x, diffuseMaterial.y, diffuseMaterial.z);
-        //glUniform3f(glGetUniformLocation(modelShader.Program, "material.specular"), specularMaterial.x, specularMaterial.y, specularMaterial.z);
-        //glUniform1f(glGetUniformLocation(modelShader.Program, "material.shininess"), shineAmount);
-
-        //// Transformation matrices
-        //glm::mat4 model;
-        //model = glm::translate(model, glm::vec3(-0.5f, -1.0f, 0.0f)); // Translate it down a bit so it's at the center of the scene
-        //model = glm::rotate(model, rotationAngle, glm::vec3(rotX, rotY, rotZ));
-        //model = glm::scale(model, modelScale);	// It's a bit too big for our scene, so scale it down
-        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        //glm::mat4 projection = glm::perspective(camera.Zoom, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        //glm::mat4 view = camera.GetViewMatrix();
-        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        //glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
-
-        //ourModel.Draw(modelShader);
-
-
-        // Floor plane
-        /*
-        //Draw the grid/floor plane
-        floorShader.Use();
-        glUniform1i(glGetUniformLocation(floorShader.Program, "blinn"), blinn);
-        // Floor
-        glBindVertexArray(planeVAO);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
-        */
-
-        
-        // Draw skybox as last
-        glDepthFunc(GL_LEQUAL);  // Change depth function so depth test passes when values are equal to depth buffer's content
-        skyboxShader.Use();
-        view = glm::mat4(glm::mat3(camera.GetViewMatrix()));	// Remove any translation component of the view matrix
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(skyboxShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        // skybox cube
-        glBindVertexArray(skyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glUniform1i(glGetUniformLocation(modelShader.Program, "skybox"), 0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glDepthFunc(GL_LESS);
-        
-
         // Rendering
         ImGui::Render();
 
@@ -613,9 +615,18 @@ void guiSetup()
 
     }
     // Camera properties
-    if (ImGui::CollapsingHeader("Camera", 0))
+    if (ImGui::CollapsingHeader("Rendering", 1))
     {
-
+        if (ImGui::Button("Deferred Rendering"))
+        {
+            deferredRendering = true;
+            forwardRendering = false;
+        }
+        if (ImGui::Button("Forward Rendering"))
+        {
+            deferredRendering = false;
+            forwardRendering = true;
+        }
     }
     // About
     if (ImGui::CollapsingHeader("About", 0))
