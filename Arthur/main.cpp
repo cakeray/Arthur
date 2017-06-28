@@ -192,7 +192,7 @@ int main()
     Shader modelLightingPass("shaders/model_lighting.vert", "shaders/model_lighting.frag");
     Shader ssaoShader("shaders/model_lighting.vert", "shaders/ssaoShader.frag");
     Shader ssaoBlurShader("shaders/model_lighting.vert", "shaders/ssaoBlur.frag");
-    Shader pbrShader("shaders/pbrShader.vs", "shaders/pbrShader.frag");
+    Shader pbrShader("shaders/pbrShader.vert", "shaders/pbrShader.frag");
 
 
     GLfloat planeVertices[] = {
@@ -282,7 +282,7 @@ int main()
     cubemapTexture = cubemap.configureSkybox(skyboxPath);
 
     // Setting default model
-    ourModel.loadModel("models/shaderBall_small.obj");
+    ourModel.loadModel("models/shaderball_small.obj");
     
     // configure g-buffer framebuffer
     unsigned int gBuffer;
@@ -403,8 +403,25 @@ int main()
 
     // PBR Shader configuration
     pbrShader.Use();
-    pbrShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
-    pbrShader.setFloat("ao", 1.0f);
+    pbrShader.setInt("albedoMap", 0);
+    pbrShader.setInt("normalMap", 1);
+    pbrShader.setInt("metallicMap", 2);
+    pbrShader.setInt("roughnessMap", 3);
+    pbrShader.setInt("aoMap", 4);
+
+    // PBR texture loading
+    unsigned int albedo = loadTexture("images/rustediron/rustediron2_basecolor.png");
+    unsigned int normal = loadTexture("images/rustediron/rustediron2_normal.png");
+    unsigned int metallic = loadTexture("images/rustediron/rustediron2_metallic.png");
+    unsigned int roughness = loadTexture("images/rustediron/rustediron2_roughness.png");
+    unsigned int ao = loadTexture("images/rustediron/rustediron2_ao.png");
+
+    glm::vec3 lightPositions[] = {
+        glm::vec3(0.0f, 0.0f, 10.0f),
+    };
+    glm::vec3 lightColors[] = {
+        glm::vec3(150.0f, 150.0f, 150.0f),
+    };
 
     glm::mat4 projection;
     projection = glm::perspective(camera.Zoom, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -445,13 +462,40 @@ int main()
             pbrShader.Use();
             pbrShader.setMat4("view", view);
             pbrShader.setVec3("camPos", camera.Position);
-            pbrShader.setFloat("metallic", metallic);
-            pbrShader.setFloat("roughness", roughness);
-            pbrShader.setVec3("lightPos", lightPos);
-            pbrShader.setVec3("lightColor", lightColor.x,lightColor.y,lightColor.z);
+            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, albedo);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, normal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, metallic);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, roughness);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, ao);
+
+            //pbrShader.setFloat("metallic", metallic);
+            //pbrShader.setFloat("roughness", roughness);
+            //pbrShader.setVec3("lightPos", lightPos);
+            //pbrShader.setVec3("lightColor", lightColor.x,lightColor.y,lightColor.z);
             pbrShader.setMat4("model", model);
             //RenderSphere();
             ourModel.Draw(pbrShader);
+            
+
+            for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+            {
+                glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+                newPos = lightPositions[i];
+                pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+                pbrShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+
+                model = glm::mat4();
+                model = glm::translate(model, newPos);
+                model = glm::scale(model, glm::vec3(0.5f));
+                pbrShader.setMat4("model", model);
+                RenderSphere();
+            }
         }
 
         if (deferredRendering) 
