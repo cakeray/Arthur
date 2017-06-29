@@ -1,4 +1,8 @@
 #pragma once
+
+#ifndef MODEL_H
+#define MODEL_H
+
 // Std. Includes
 #include <string>
 #include <fstream>
@@ -25,7 +29,6 @@ class Model
 {
 public:
     /*  Model Data */
-    vector<Texture> textures_loaded;	// Stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     vector<Mesh> meshes;
     string directory;
 
@@ -92,7 +95,6 @@ private:
         // Data to fill
         vector<Vertex> vertices;
         vector<GLuint> indices;
-        vector<Texture> textures;
 
         // Walk through each of the mesh's vertices
         for (GLuint i = 0; i < mesh->mNumVertices; i++)
@@ -121,16 +123,7 @@ private:
             }
             else
                 vertex.TexCoords = glm::vec2(0.0f, 0.0f);
-            //// Tangent
-            //vector.x = mesh->mTangents[i].x;
-            //vector.y = mesh->mTangents[i].y;
-            //vector.z = mesh->mTangents[i].z;
-            //vertex.Tangent = vector;
-            //// Bitangent
-            //vector.x = mesh->mBitangents[i].x;
-            //vector.y = mesh->mBitangents[i].y;
-            //vector.z = mesh->mBitangents[i].z;
-            //vertex.Bitangent = vector;
+            
             vertices.push_back(vertex);
         }
         // Now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
@@ -141,67 +134,43 @@ private:
             for (GLuint j = 0; j < face.mNumIndices; j++)
                 indices.push_back(face.mIndices[j]);
         }
-        // Process materials
-        if (mesh->mMaterialIndex >= 0)
-        {
-            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-            // We assume a convention for sampler names in the shaders. Each diffuse texture should be named
-            // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-            // Same applies to other texture as the following list summarizes:
-            // Diffuse: texture_diffuseN
-            // Specular: texture_specularN
-            // Normal: texture_normalN
-
-            // 1. Diffuse maps
-            vector<Texture> diffuseMaps = this->loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-            textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-            // 2. Specular maps
-            vector<Texture> specularMaps = this->loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-            textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-            // 3. Normal maps
-            std::vector<Texture> normalMaps = this->loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-            textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-            // 4. Height maps
-            std::vector<Texture> heightMaps = this->loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-            textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-        }
-
+        
         // Return a mesh object created from the extracted mesh data
-        return Mesh(vertices, indices, textures);
+        return Mesh(vertices, indices);
     }
 
     // Checks all material textures of a given type and loads the textures if they're not loaded yet.
     // The required info is returned as a Texture struct.
-    vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName)
-    {
-        vector<Texture> textures;
-        for (GLuint i = 0; i < mat->GetTextureCount(type); i++)
-        {
-            aiString str;
-            mat->GetTexture(type, i, &str);
-            // Check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
-            GLboolean skip = false;
-            for (GLuint j = 0; j < textures_loaded.size(); j++)
-            {
-                if (std::strcmp(textures_loaded[j].path.C_Str(), str.C_Str()) == 0)
-                {
-                    textures.push_back(textures_loaded[j]);
-                    skip = true; // A texture with the same filepath has already been loaded, continue to next one. (optimization)
-                    break;
-                }
-            }
-            if (!skip)
-            {   // If texture hasn't been loaded already, load it
-                Texture texture;
-                texture.id = TextureFromFile(str.C_Str(), this->directory);
-                texture.type = typeName;
-                texture.path = str;
-                textures.push_back(texture);
-                this->textures_loaded.push_back(texture);  // Store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
-            }
-        }
-        return textures;
-    }
+    //vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName)
+    //{
+    //    vector<Texture> textures;
+    //    for (GLuint i = 0; i < mat->GetTextureCount(type); i++)
+    //    {
+    //        aiString str;
+    //        mat->GetTexture(type, i, &str);
+    //        // Check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
+    //        GLboolean skip = false;
+    //        for (GLuint j = 0; j < textures_loaded.size(); j++)
+    //        {
+    //            if (std::strcmp(textures_loaded[j].path.C_Str(), str.C_Str()) == 0)
+    //            {
+    //                textures.push_back(textures_loaded[j]);
+    //                skip = true; // A texture with the same filepath has already been loaded, continue to next one. (optimization)
+    //                break;
+    //            }
+    //        }
+    //        if (!skip)
+    //        {   // If texture hasn't been loaded already, load it
+    //            Texture texture;
+    //            texture.id = TextureFromFile(str.C_Str(), this->directory);
+    //            texture.type = typeName;
+    //            texture.path = str;
+    //            textures.push_back(texture);
+    //            this->textures_loaded.push_back(texture);  // Store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
+    //        }
+    //    }
+    //    return textures;
+    //}
 };
 
 
@@ -244,3 +213,5 @@ unsigned int TextureFromFile(const char* path, string directory, bool gamma)
 
     return textureID;
 }
+
+#endif // !MODEL_H
