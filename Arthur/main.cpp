@@ -799,11 +799,13 @@ void guiSetup()
         {
             deferredRendering = true;
             forwardRendering = false;
+            pbrActive = false;
         }
         if (ImGui::Button("Forward Rendering"))
         {
             deferredRendering = false;
             forwardRendering = true;
+            pbrActive = false;
         }
         if (ImGui::TreeNode("SSAO"))
         {
