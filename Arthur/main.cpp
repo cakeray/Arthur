@@ -23,6 +23,7 @@
 #include "Camera.h"
 #include "Model.h"
 #include "Skybox.h"
+#include "Texture.h"
 
 // GLM Mathemtics Header
 #include <glm/glm.hpp>
@@ -52,7 +53,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
-GLuint loadTexture(GLchar* path);
+//GLuint loadTexture(GLchar* path);
 void RenderCube();
 void RenderQuad();
 void RenderSphere();
@@ -140,6 +141,13 @@ glm::vec3 lightDirection(1.0f, 3.0f, 3.0f);
 int lightMode = 1;
 int attenuationMode = 1;
 
+// Textures
+Texture objectAlbedo;
+Texture objectMetallic;
+Texture objectRoughness;
+Texture objectNormal;
+Texture objectAO;
+
 
 
 // ================================
@@ -219,7 +227,7 @@ int main()
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
     glBindVertexArray(0);
-    GLuint floorTexture = loadTexture("images/checkerboard.jpg");
+    //GLuint floorTexture = loadTexture("images/checkerboard.jpg");
 
 
     GLfloat skyboxVertices[] = {
@@ -410,14 +418,15 @@ int main()
     pbrShader.setInt("aoMap", 4);
 
     // PBR texture loading
-    unsigned int albedo = loadTexture("images/rustediron/rustediron2_basecolor.png");
-    unsigned int normal = loadTexture("images/rustediron/rustediron2_normal.png");
-    unsigned int metallic = loadTexture("images/rustediron/rustediron2_metallic.png");
-    unsigned int roughness = loadTexture("images/rustediron/rustediron2_roughness.png");
-    unsigned int ao = loadTexture("images/rustediron/rustediron2_ao.png");
+    objectAlbedo.loadTexture("images/rustediron/rustediron2_basecolor.png", "albedo");
+    objectNormal.loadTexture("images/rustediron/rustediron2_normal.png", "normal");
+    objectMetallic.loadTexture("images/rustediron/rustediron2_metallic.png", "metallic");
+    objectRoughness.loadTexture("images/rustediron/rustediron2_roughness.png", "roughness");
+    objectAO.loadTexture("images/rustediron/rustediron2_ao.png", "ao");
+    //cout << objectAlbedo.getTextureID() << endl << objectNormal.getTextureID() << objectMetallic.getTextureID() << endl << objectRoughness.getTextureID() << endl << objectAO.getTextureID();
 
     glm::vec3 lightPositions[] = {
-        glm::vec3(0.0f, 0.0f, 10.0f),
+        glm::vec3(0.0f, 10.0f, 0.0f),
     };
     glm::vec3 lightColors[] = {
         glm::vec3(150.0f, 150.0f, 150.0f),
@@ -464,25 +473,20 @@ int main()
             pbrShader.setVec3("camPos", camera.Position);
             
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, albedo);
+            glBindTexture(GL_TEXTURE_2D, objectAlbedo.getTextureID());
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, normal);
+            glBindTexture(GL_TEXTURE_2D, objectNormal.getTextureID());
             glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_2D, metallic);
+            glBindTexture(GL_TEXTURE_2D, objectMetallic.getTextureID());
             glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_2D, roughness);
+            glBindTexture(GL_TEXTURE_2D, objectRoughness.getTextureID());
             glActiveTexture(GL_TEXTURE4);
-            glBindTexture(GL_TEXTURE_2D, ao);
+            glBindTexture(GL_TEXTURE_2D, objectAO.getTextureID());
 
-            //pbrShader.setFloat("metallic", metallic);
-            //pbrShader.setFloat("roughness", roughness);
-            //pbrShader.setVec3("lightPos", lightPos);
-            //pbrShader.setVec3("lightColor", lightColor.x,lightColor.y,lightColor.z);
             pbrShader.setMat4("model", model);
             //RenderSphere();
             ourModel.Draw(pbrShader);
             
-
             for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
             {
                 glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
@@ -991,28 +995,28 @@ void RenderQuad()
     glBindVertexArray(0);
 }
 
-
-GLuint loadTexture(GLchar* path)
-{
-    // Generate texture ID and load texture data 
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    int width, height;
-    unsigned char* image = SOIL_load_image(path, &width, &height, 0, SOIL_LOAD_RGB);
-    // Assign texture to ID
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    SOIL_free_image_data(image);
-    return textureID;
-}
+//
+//GLuint loadTexture(GLchar* path)
+//{
+//    // Generate texture ID and load texture data 
+//    GLuint textureID;
+//    glGenTextures(1, &textureID);
+//    int width, height;
+//    unsigned char* image = SOIL_load_image(path, &width, &height, 0, SOIL_LOAD_RGB);
+//    // Assign texture to ID
+//    glBindTexture(GL_TEXTURE_2D, textureID);
+//    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+//    glGenerateMipmap(GL_TEXTURE_2D);
+//
+//    // Parameters
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//    glBindTexture(GL_TEXTURE_2D, 0);
+//    SOIL_free_image_data(image);
+//    return textureID;
+//}
 
 
 #pragma region "User input"
