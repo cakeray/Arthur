@@ -418,18 +418,21 @@ int main()
     pbrShader.setInt("aoMap", 4);
 
     // PBR texture loading
-    objectAlbedo.loadTexture("images/rustediron/rustediron2_basecolor.png", "albedo");
-    objectNormal.loadTexture("images/rustediron/rustediron2_normal.png", "normal");
-    objectMetallic.loadTexture("images/rustediron/rustediron2_metallic.png", "metallic");
-    objectRoughness.loadTexture("images/rustediron/rustediron2_roughness.png", "roughness");
-    objectAO.loadTexture("images/rustediron/rustediron2_ao.png", "ao");
-    //cout << objectAlbedo.getTextureID() << endl << objectNormal.getTextureID() << objectMetallic.getTextureID() << endl << objectRoughness.getTextureID() << endl << objectAO.getTextureID();
-
+    objectAlbedo.loadTexture("images/rustediron/albedo.png", "albedo");
+    objectNormal.loadTexture("images/rustediron/normal.png", "normal");
+    objectMetallic.loadTexture("images/rustediron/metallic.png", "metallic");
+    objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
+    objectAO.loadTexture("images/rustediron/ao.png", "ao");
+    
     glm::vec3 lightPositions[] = {
-        glm::vec3(0.0f, 10.0f, 0.0f),
+        glm::vec3(5.0f, 5.0f, 5.0f),
+        glm::vec3(-5.0f,5.0f,5.0f),
+        glm::vec3(0.0f,5.0f,-5.0f)
     };
     glm::vec3 lightColors[] = {
         glm::vec3(150.0f, 150.0f, 150.0f),
+        glm::vec3(150.0f, 150.0f, 150.0f),
+        glm::vec3(150.0f, 150.0f, 150.0f)
     };
 
     glm::mat4 projection;
@@ -679,17 +682,17 @@ void guiSetup()
             if (ImGui::Button("Shader Ball"))
             {
                 ourModel.~Model();
-                ourModel.loadModel("models/shaderBall_small.obj");
+                ourModel.loadModel("models/shaderBall_small2.obj");
             }
             if (ImGui::Button("Stanford Dragon"))
             {
                 ourModel.~Model();
-                ourModel.loadModel("models/dragon_small.obj");
+                ourModel.loadModel("models/dragon_small2.obj");
             }
             if (ImGui::Button("Stanford Bunny"))
             {
                 ourModel.~Model();
-                ourModel.loadModel("models/bunny_small.obj");
+                ourModel.loadModel("models/bunny_small2.obj");
             }
 
             ImGui::TreePop();
@@ -835,8 +838,42 @@ void guiSetup()
             deferredRendering = false;
             forwardRendering = false;
         }
+        
         ImGui::SliderFloat("Metallic", &metallic, 0.0,1.0);
         ImGui::SliderFloat("Roughness", &roughness, 0.0, 1.0);
+        
+        if (ImGui::Button("Rusted Iron"))
+        {
+            objectAlbedo.loadTexture("images/rustediron/albedo.png", "albedo");
+            objectNormal.loadTexture("images/rustediron/normal.png", "normal");
+            objectMetallic.loadTexture("images/rustediron/metallic.png", "metallic");
+            objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
+            objectAO.loadTexture("images/rustediron/ao.png", "ao");
+        }
+        if (ImGui::Button("Limestone"))
+        {
+            objectAlbedo.loadTexture("images/limestone/albedo.png", "albedo");
+            objectNormal.loadTexture("images/limestone/normal.png", "normal");
+            objectMetallic.loadTexture("images/limestone/metallic.png", "metallic");
+            objectRoughness.loadTexture("images/limestone/roughness.png", "roughness");
+            objectAO.loadTexture("images/limestone/ao.png", "ao");
+        }
+        if (ImGui::Button("Bricks"))
+        {
+            objectAlbedo.loadTexture("images/bricks/albedo.png", "albedo");
+            objectNormal.loadTexture("images/bricks/normal.png", "normal");
+            objectMetallic.loadTexture("images/bricks/metallic.png", "metallic");
+            objectRoughness.loadTexture("images/bricks/roughness.png", "roughness");
+            objectAO.loadTexture("images/bricks/ao.png", "ao");
+        }
+        if (ImGui::Button("Marble"))
+        {
+            objectAlbedo.loadTexture("images/marble/albedo.png", "albedo");
+            objectNormal.loadTexture("images/marble/normal.png", "normal");
+            objectMetallic.loadTexture("images/marble/metallic.png", "metallic");
+            objectRoughness.loadTexture("images/marble/roughness.png", "roughness");
+            objectAO.loadTexture("images/marble/ao.png", "ao");
+        }
     }
     // About
     if (ImGui::CollapsingHeader("About", 0))
