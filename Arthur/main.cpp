@@ -147,6 +147,7 @@ Texture objectMetallic;
 Texture objectRoughness;
 Texture objectNormal;
 Texture objectAO;
+Texture envHDR;
 
 
 
@@ -201,33 +202,6 @@ int main()
     Shader ssaoShader("shaders/model_lighting.vert", "shaders/ssaoShader.frag");
     Shader ssaoBlurShader("shaders/model_lighting.vert", "shaders/ssaoBlur.frag");
     Shader pbrShader("shaders/pbrShader.vert", "shaders/pbrShader.frag");
-
-
-    GLfloat planeVertices[] = {
-        // Positions          // Normals         // Texture Coords
-        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 0.0f,
-        -1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
-        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 5.0f,
-
-        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 0.0f,
-        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 5.0f,
-        1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  5.0f, 5.0f
-    };
-    // Setup plane VAO
-    GLuint planeVAO, planeVBO;
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
-    glBindVertexArray(0);
-    //GLuint floorTexture = loadTexture("images/checkerboard.jpg");
 
 
     GLfloat skyboxVertices[] = {
@@ -423,6 +397,8 @@ int main()
     objectMetallic.loadTexture("images/rustediron/metallic.png", "metallic");
     objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
     objectAO.loadTexture("images/rustediron/ao.png", "ao");
+
+    envHDR.loadHDR("images/loft/Newport_Loft_Ref.hdr","loft");
     
     glm::vec3 lightPositions[] = {
         glm::vec3(5.0f, 5.0f, 5.0f),
@@ -468,7 +444,6 @@ int main()
         // GUI
         guiSetup();
 
-
         if (pbrActive)
         {
             pbrShader.Use();
@@ -487,8 +462,8 @@ int main()
             glBindTexture(GL_TEXTURE_2D, objectAO.getTextureID());
 
             pbrShader.setMat4("model", model);
-            //RenderSphere();
-            ourModel.Draw(pbrShader);
+            RenderSphere();
+            //ourModel.Draw(pbrShader);
             
             for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
             {
@@ -609,18 +584,6 @@ int main()
             modelShader.setMat4("model", model);
             
             ourModel.Draw(modelShader);
-
-            // Floor plane
-            /*
-            //Draw the grid/floor plane
-            floorShader.Use();
-            glUniform1i(glGetUniformLocation(floorShader.Program, "blinn"), blinn);
-            // Floor
-            glBindVertexArray(planeVAO);
-            glBindTexture(GL_TEXTURE_2D, floorTexture);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            glBindVertexArray(0);
-            */
 
             // Draw skybox as last
             glDepthFunc(GL_LEQUAL);  // Change depth function so depth test passes when values are equal to depth buffer's content
@@ -795,7 +758,7 @@ void guiSetup()
         }
 
     }
-    // Camera properties
+    // Rendering properties
     if (ImGui::CollapsingHeader("Rendering", 1))
     {
         if (ImGui::Button("Deferred Rendering"))
@@ -850,30 +813,15 @@ void guiSetup()
             objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
             objectAO.loadTexture("images/rustediron/ao.png", "ao");
         }
-        if (ImGui::Button("Limestone"))
+        if (ImGui::Button("Gold"))
         {
-            objectAlbedo.loadTexture("images/limestone/albedo.png", "albedo");
-            objectNormal.loadTexture("images/limestone/normal.png", "normal");
-            objectMetallic.loadTexture("images/limestone/metallic.png", "metallic");
-            objectRoughness.loadTexture("images/limestone/roughness.png", "roughness");
-            objectAO.loadTexture("images/limestone/ao.png", "ao");
+            objectAlbedo.loadTexture("images/gold/albedo_boosted.png", "albedo");
+            objectNormal.loadTexture("images/gold/normal.png", "normal");
+            objectMetallic.loadTexture("images/gold/metallic.png", "metallic");
+            objectRoughness.loadTexture("images/gold/roughness.png", "roughness");
+            objectAO.loadTexture("images/gold/ao.png", "ao");
         }
-        if (ImGui::Button("Bricks"))
-        {
-            objectAlbedo.loadTexture("images/bricks/albedo.png", "albedo");
-            objectNormal.loadTexture("images/bricks/normal.png", "normal");
-            objectMetallic.loadTexture("images/bricks/metallic.png", "metallic");
-            objectRoughness.loadTexture("images/bricks/roughness.png", "roughness");
-            objectAO.loadTexture("images/bricks/ao.png", "ao");
-        }
-        if (ImGui::Button("Marble"))
-        {
-            objectAlbedo.loadTexture("images/marble/albedo.png", "albedo");
-            objectNormal.loadTexture("images/marble/normal.png", "normal");
-            objectMetallic.loadTexture("images/marble/metallic.png", "metallic");
-            objectRoughness.loadTexture("images/marble/roughness.png", "roughness");
-            objectAO.loadTexture("images/marble/ao.png", "ao");
-        }
+
     }
     // About
     if (ImGui::CollapsingHeader("About", 0))
