@@ -47,6 +47,8 @@
 // Do_Movement() to move around the screen if certain keys are pressed
 // loadTexture() is self explanatory
 void guiSetup();
+void gBufferInit();
+void ssaoInit();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -129,6 +131,16 @@ bool mouseClickActive;
 // Time
 GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
+
+// gBuffer
+unsigned int gBuffer;
+unsigned int gPosition, gNormal, gAlbedo;
+
+// SSAO
+unsigned int ssaoFBO, ssaoBlurFBO; 
+unsigned int ssaoColorBuffer, ssaoColorBufferBlur;
+std::vector<glm::vec3> ssaoKernel;
+unsigned int noiseTexture;
 
 // Model
 Model ourModel;
@@ -267,104 +279,11 @@ int main()
     ourModel.loadModel("models/shaderball_small.obj");
     
     // configure g-buffer framebuffer
-    unsigned int gBuffer;
-    glGenFramebuffers(1, &gBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-    unsigned int gPosition, gNormal, gAlbedo;
-    // position color buffer
-    glGenTextures(1, &gPosition);
-    glBindTexture(GL_TEXTURE_2D, gPosition);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
-    // normal color buffer
-    glGenTextures(1, &gNormal);
-    glBindTexture(GL_TEXTURE_2D, gNormal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-    // color + specular color buffer
-    glGenTextures(1, &gAlbedo);
-    glBindTexture(GL_TEXTURE_2D, gAlbedo);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
-    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
-    // create and attach depth buffer (renderbuffer)
-    unsigned int rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-    // finally check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "Framebuffer not complete!" << std::endl;
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    gBufferInit();
 
-    // also create framebuffer to hold SSAO processing stage 
-    unsigned int ssaoFBO, ssaoBlurFBO;
-    glGenFramebuffers(1, &ssaoFBO);  glGenFramebuffers(1, &ssaoBlurFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-    unsigned int ssaoColorBuffer, ssaoColorBufferBlur;
-    // SSAO color buffer
-    glGenTextures(1, &ssaoColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "SSAO Framebuffer not complete!" << std::endl;
-    // and blur stage
-    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
-    glGenTextures(1, &ssaoColorBufferBlur);
-    glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBufferBlur, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "SSAO Blur Framebuffer not complete!" << std::endl;
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // generate sample kernel
-    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
-    std::default_random_engine generator;
-    std::vector<glm::vec3> ssaoKernel;
-    for (unsigned int i = 0; i < 64; ++i)
-    {
-        glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
-        sample = glm::normalize(sample);
-        sample *= randomFloats(generator);
-        float scale = float(i) / 64.0;
-
-        // scale samples s.t. they're more aligned to center of kernel
-        scale = lerp(0.1f, 1.0f, scale * scale);
-        sample *= scale;
-        ssaoKernel.push_back(sample);
-    }
-
-    // generate noise texture
-    std::vector<glm::vec3> ssaoNoise;
-    for (unsigned int i = 0; i < 16; i++)
-    {
-        glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
-        ssaoNoise.push_back(noise);
-    }
-    unsigned int noiseTexture; glGenTextures(1, &noiseTexture);
-    glBindTexture(GL_TEXTURE_2D, noiseTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // configure framebuffer for SSAO
+    ssaoInit();
+    
 
     // lighting info
     glm::vec3 ssaoLightPos = glm::vec3(0.0, 12.0, 0.0);
@@ -842,7 +761,106 @@ void guiSetup()
             ImGui::TreePop();
         }
     }
+}
 
+void gBufferInit()
+{
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+    // position color buffer
+    glGenTextures(1, &gPosition);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    // normal color buffer
+    glGenTextures(1, &gNormal);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+    // color + specular color buffer
+    glGenTextures(1, &gAlbedo);
+    glBindTexture(GL_TEXTURE_2D, gAlbedo);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
+    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+    // create and attach depth buffer (renderbuffer)
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
+void ssaoInit()
+{
+    glGenFramebuffers(1, &ssaoFBO);  glGenFramebuffers(1, &ssaoBlurFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+    // SSAO color buffer
+    glGenTextures(1, &ssaoColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "SSAO Framebuffer not complete!" << std::endl;
+    // and blur stage
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
+    glGenTextures(1, &ssaoColorBufferBlur);
+    glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBufferBlur, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "SSAO Blur Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // generate sample kernel
+    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
+    std::default_random_engine generator;
+    for (unsigned int i = 0; i < 64; ++i)
+    {
+        glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
+        sample = glm::normalize(sample);
+        sample *= randomFloats(generator);
+        float scale = float(i) / 64.0;
+
+        // scale samples s.t. they're more aligned to center of kernel
+        scale = lerp(0.1f, 1.0f, scale * scale);
+        sample *= scale;
+        ssaoKernel.push_back(sample);
+    }
+
+    // generate noise texture
+    std::vector<glm::vec3> ssaoNoise;
+    for (unsigned int i = 0; i < 16; i++)
+    {
+        glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+        ssaoNoise.push_back(noise);
+    }
+    glGenTextures(1, &noiseTexture);
+    glBindTexture(GL_TEXTURE_2D, noiseTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 
 
