@@ -134,14 +134,19 @@ GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
 
 // gBuffer
-unsigned int gBuffer;
-unsigned int gPosition, gNormal, gAlbedo;
+GLuint gBuffer;
+GLuint gPosition, gNormal, gAlbedo;
 
 // SSAO
-unsigned int ssaoFBO, ssaoBlurFBO; 
-unsigned int ssaoColorBuffer, ssaoColorBufferBlur;
+GLuint ssaoFBO, ssaoBlurFBO; 
+GLuint ssaoColorBuffer, ssaoColorBufferBlur;
 std::vector<glm::vec3> ssaoKernel;
-unsigned int noiseTexture;
+GLuint noiseTexture;
+
+// PBR
+GLuint hdrTexture;
+GLuint envCubemap;
+GLuint captureFBO;
 
 // Model
 Model ourModel;
@@ -325,37 +330,10 @@ int main()
     backgroundShader.setInt("environmentMap", 0);
 
     // PBR setup
-    //pbrInit();
-    // pbr: setup framebuffer
-    // ----------------------
-    unsigned int captureFBO;
-    unsigned int captureRBO;
-    glGenFramebuffers(1, &captureFBO);
-    glGenRenderbuffers(1, &captureRBO);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
-
+    pbrInit();
+    
     // Load HDR texture
-    unsigned int hdrTexture;
     hdrTexture = envHDR.loadHDR("images/loft/Newport_Loft_Ref_Flip.hdr", "loft");
-
-    // pbr: setup cubemap to render to and attach to framebuffer
-    // ---------------------------------------------------------
-    unsigned int envCubemap;
-    glGenTextures(1, &envCubemap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-    for (unsigned int i = 0; i < 6; ++i)
-    {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // pbr: set up projection and view matrices for capturing data onto the 6 cubemap face directions
     // ----------------------------------------------------------------------------------------------
@@ -369,7 +347,7 @@ int main()
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
     };
-
+    
     // pbr: convert HDR equirectangular environment map to cubemap equivalent
     // ----------------------------------------------------------------------
     rectToCubemap.Use();
@@ -380,7 +358,7 @@ int main()
 
     glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    for (unsigned int i = 0; i < 6; ++i)
+    for (GLuint i = 0; i < 6; ++i)
     {
         rectToCubemap.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
@@ -464,7 +442,7 @@ int main()
             RenderSphere();
             //ourModel.Draw(pbrShader);
             
-            for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+            for (GLuint i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
             {
                 glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
                 newPos = lightPositions[i];
@@ -513,7 +491,7 @@ int main()
                 ssaoShader.setFloat("radius", ssaoRadius);
                 ssaoShader.setFloat("bias", ssaoBias);
                 ssaoShader.setInt("power", power);
-                for (unsigned int i = 0; i < 64; ++i)
+                for (GLuint i = 0; i < 64; ++i)
                     ssaoShader.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
                 ssaoShader.setMat4("projection", projection);
                 glActiveTexture(GL_TEXTURE0);
@@ -879,10 +857,10 @@ void gBufferInit()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
     glDrawBuffers(3, attachments);
     // create and attach depth buffer (renderbuffer)
-    unsigned int rboDepth;
+    GLuint rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -922,7 +900,7 @@ void ssaoInit()
     // generate sample kernel
     std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
     std::default_random_engine generator;
-    for (unsigned int i = 0; i < 64; ++i)
+    for (GLuint i = 0; i < 64; ++i)
     {
         glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
         sample = glm::normalize(sample);
@@ -937,7 +915,7 @@ void ssaoInit()
 
     // generate noise texture
     std::vector<glm::vec3> ssaoNoise;
-    for (unsigned int i = 0; i < 16; i++)
+    for (GLuint i = 0; i < 16; i++)
     {
         glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
         ssaoNoise.push_back(noise);
@@ -954,7 +932,30 @@ void ssaoInit()
 
 void pbrInit()
 {
-    
+    // pbr: setup framebuffer
+    // ----------------------
+    GLuint captureRBO;
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+
+    // pbr: setup cubemap to render to and attach to framebuffer
+    // ---------------------------------------------------------
+    glGenTextures(1, &envCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    for (GLuint i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
 
@@ -967,29 +968,29 @@ GLfloat lerp(GLfloat a, GLfloat b, GLfloat f)
 
 // renders (and builds at first invocation) a sphere
 // -------------------------------------------------
-unsigned int sphereVAO = 0;
-unsigned int indexCount;
+GLuint sphereVAO = 0;
+GLuint indexCount;
 void RenderSphere()
 {
     if (sphereVAO == 0)
     {
         glGenVertexArrays(1, &sphereVAO);
 
-        unsigned int vbo, ebo;
+        GLuint vbo, ebo;
         glGenBuffers(1, &vbo);
         glGenBuffers(1, &ebo);
 
         std::vector<glm::vec3> positions;
         std::vector<glm::vec2> uv;
         std::vector<glm::vec3> normals;
-        std::vector<unsigned int> indices;
+        std::vector<GLuint> indices;
 
-        const unsigned int X_SEGMENTS = 64;
-        const unsigned int Y_SEGMENTS = 64;
+        const GLuint X_SEGMENTS = 64;
+        const GLuint Y_SEGMENTS = 64;
         const float PI = 3.14159265359;
-        for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
+        for (GLuint y = 0; y <= Y_SEGMENTS; ++y)
         {
-            for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+            for (GLuint x = 0; x <= X_SEGMENTS; ++x)
             {
                 float xSegment = (float)x / (float)X_SEGMENTS;
                 float ySegment = (float)y / (float)Y_SEGMENTS;
@@ -1048,7 +1049,7 @@ void RenderSphere()
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), &indices[0], GL_STATIC_DRAW);
         float stride = (3 + 2 + 3) * sizeof(float);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
@@ -1095,8 +1096,8 @@ void RenderQuad()
 
 // renderCube() renders a 1x1 3D cube in NDC.
 // -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
+GLuint cubeVAO = 0;
+GLuint cubeVBO = 0;
 void RenderCube()
 {
     // initialize (if necessary)
