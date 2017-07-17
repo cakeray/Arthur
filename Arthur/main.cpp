@@ -202,8 +202,7 @@ int main()
 
     // Setup some OpenGL options
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-
+    
     // List of shaders
     Shader gridShader("shaders/gridTexture.vert", "shaders/gridTexture.frag");
     Shader modelShader("shaders/model_loading.vert", "shaders/model_loading.frag");
@@ -342,7 +341,7 @@ int main()
     // pbr: load the HDR environment map
     // ---------------------------------
     int width, height, nrComponents;
-    float *data = stbi_loadf("images/loft/Newport_Loft_Env.hdr", &width, &height, &nrComponents, 0);
+    float *data = stbi_loadf("images/loft/Newport_Loft_Ref_Flip.hdr", &width, &height, &nrComponents, 0);
     unsigned int hdrTexture;
     if (data)
     {
@@ -501,6 +500,7 @@ int main()
             }
 
             // render skybox (render as last to prevent overdraw)
+            glDepthFunc(GL_LEQUAL);
             backgroundShader.Use();
             backgroundShader.setMat4("view", view);
             glActiveTexture(GL_TEXTURE0);
