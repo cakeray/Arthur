@@ -147,6 +147,7 @@ GLuint noiseTexture;
 GLuint hdrTexture;
 GLuint envCubemap;
 GLuint captureFBO;
+GLuint captureRBO;
 
 // Model
 Model ourModel;
@@ -219,6 +220,7 @@ int main()
     Shader ssaoShader("shaders/model_lighting.vert", "shaders/ssaoShader.frag");
     Shader ssaoBlurShader("shaders/model_lighting.vert", "shaders/ssaoBlur.frag");
     Shader pbrShader("shaders/pbrShader.vert", "shaders/pbrShader.frag");
+    Shader irradianceShader("shaders/rectToCubemap.vert", "shaders/pbrIrradiance.frag");
     Shader rectToCubemap("shaders/rectToCubemap.vert", "shaders/rectToCubemap.frag");
     Shader backgroundShader("shaders/background.vert", "shaders/background.frag");
 
@@ -317,6 +319,7 @@ int main()
     pbrShader.setInt("metallicMap", 2);
     pbrShader.setInt("roughnessMap", 3);
     pbrShader.setInt("aoMap", 4);
+    pbrShader.setInt("irradianceMap", 5);
 
     // PBR texture loading
     objectAlbedo.loadTexture("images/rustediron/albedo.png", "albedo");
@@ -367,6 +370,46 @@ int main()
         RenderCube();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
+    // --------------------------------------------------------------------------------
+    unsigned int irradianceMap;
+    glGenTextures(1, &irradianceMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
+
+    // pbr: solve diffuse integral by convolution to create an irradiance (cube)map.
+    // -----------------------------------------------------------------------------
+    irradianceShader.Use();
+    irradianceShader.setInt("environmentMap", 0);
+    irradianceShader.setMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+    glViewport(0, 0, 32, 32); // don't forget to configure the viewport to the capture dimensions.
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        irradianceShader.setMat4("view", captureViews[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        RenderCube();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
     glm::vec3 lightPositions[] = {
         glm::vec3(5.0f, 5.0f, 5.0f),
@@ -800,7 +843,7 @@ void guiSetup()
         }
         if (ImGui::Button("Gold"))
         {
-            objectAlbedo.loadTexture("images/gold/albedo_boosted.png", "albedo");
+            objectAlbedo.loadTexture("images/gold/albedo.png", "albedo");
             objectNormal.loadTexture("images/gold/normal.png", "normal");
             objectMetallic.loadTexture("images/gold/metallic.png", "metallic");
             objectRoughness.loadTexture("images/gold/roughness.png", "roughness");
@@ -934,7 +977,6 @@ void pbrInit()
 {
     // pbr: setup framebuffer
     // ----------------------
-    GLuint captureRBO;
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
 
