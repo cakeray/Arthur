@@ -23,7 +23,7 @@ using namespace std;
 
 #include "Mesh.h"
 
-unsigned int TextureFromFile(const char* path, string directory, bool gamma = false);
+GLuint TextureFromFile(const char* path, string directory, bool gamma = false);
 
 class Model
 {
@@ -174,12 +174,12 @@ private:
 };
 
 
-unsigned int TextureFromFile(const char* path, string directory, bool gamma)
+GLuint TextureFromFile(const char* path, string directory, bool gamma)
 {
     string filename = string(path);
     filename = directory + '/' + filename;
 
-    unsigned int textureID;
+    GLuint textureID;
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
