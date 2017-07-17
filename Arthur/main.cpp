@@ -338,28 +338,9 @@ int main()
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    // pbr: load the HDR environment map
-    // ---------------------------------
-    int width, height, nrComponents;
-    float *data = stbi_loadf("images/loft/Newport_Loft_Ref_Flip.hdr", &width, &height, &nrComponents, 0);
+    // Load HDR texture
     unsigned int hdrTexture;
-    if (data)
-    {
-        glGenTextures(1, &hdrTexture);
-        glBindTexture(GL_TEXTURE_2D, hdrTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data); // note how we specify the texture's data value to be float
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
-    }
-    else
-    {
-        std::cout << "Failed to load HDR image." << std::endl;
-    }
+    hdrTexture = envHDR.loadHDR("images/loft/Newport_Loft_Ref_Flip.hdr", "loft");
 
     // pbr: setup cubemap to render to and attach to framebuffer
     // ---------------------------------------------------------
@@ -409,8 +390,6 @@ int main()
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    envHDR.loadHDR("images/loft/Newport_Loft_Ref.hdr","loft");
-    
     glm::vec3 lightPositions[] = {
         glm::vec3(5.0f, 5.0f, 5.0f),
         glm::vec3(-5.0f,5.0f,5.0f),
