@@ -931,24 +931,68 @@ void guiSetup()
             forwardRendering = false;
         }
         
-        ImGui::SliderFloat("Metallic", &metallic, 0.0,1.0);
-        ImGui::SliderFloat("Roughness", &roughness, 0.0, 1.0);
-        
-        if (ImGui::Button("Rusted Iron"))
+        if (ImGui::TreeNode("Controls"))
         {
-            objectAlbedo.loadTexture("images/rustediron/albedo.png", "albedo");
-            objectNormal.loadTexture("images/rustediron/normal.png", "normal");
-            objectMetallic.loadTexture("images/rustediron/metallic.png", "metallic");
-            objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
-            objectAO.loadTexture("images/rustediron/ao.png", "ao");
+            ImGui::SliderFloat("Metallic", &metallic, 0.0, 1.0);
+            ImGui::SliderFloat("Roughness", &roughness, 0.0, 1.0);
+
+            ImGui::TreePop();
         }
-        if (ImGui::Button("Gold"))
+        
+        if (ImGui::TreeNode("Materials"))
         {
-            objectAlbedo.loadTexture("images/gold/albedo_boosted.png", "albedo");
-            objectNormal.loadTexture("images/gold/normal.png", "normal");
-            objectMetallic.loadTexture("images/gold/metallic.png", "metallic");
-            objectRoughness.loadTexture("images/gold/roughness.png", "roughness");
-            objectAO.loadTexture("images/gold/ao.png", "ao");
+            if (ImGui::Button("Rusted Iron"))
+            {
+                objectAlbedo.loadTexture("images/rustediron/albedo.png", "albedo");
+                objectNormal.loadTexture("images/rustediron/normal.png", "normal");
+                objectMetallic.loadTexture("images/rustediron/metallic.png", "metallic");
+                objectRoughness.loadTexture("images/rustediron/roughness.png", "roughness");
+                objectAO.loadTexture("images/rustediron/ao.png", "ao");
+            }
+            if (ImGui::Button("Gold"))
+            {
+                objectAlbedo.loadTexture("images/gold/albedo_boosted.png", "albedo");
+                objectNormal.loadTexture("images/gold/normal.png", "normal");
+                objectMetallic.loadTexture("images/gold/metallic.png", "metallic");
+                objectRoughness.loadTexture("images/gold/roughness.png", "roughness");
+                objectAO.loadTexture("images/gold/ao.png", "ao");
+            }
+            if (ImGui::Button("Concrete"))
+            {
+                objectAlbedo.loadTexture("images/concrete/albedo.png", "albedo");
+                objectNormal.loadTexture("images/concrete/normal.png", "normal");
+                objectMetallic.loadTexture("images/concrete/metallic.png", "metallic");
+                objectRoughness.loadTexture("images/concrete/roughness.png", "roughness");
+                objectAO.loadTexture("images/concrete/ao.png", "ao");
+            }
+            if (ImGui::Button("Plastic"))
+            {
+                objectAlbedo.loadTexture("images/plastic/albedo.png", "albedo");
+                objectNormal.loadTexture("images/plastic/normal.png", "normal");
+                objectMetallic.loadTexture("images/plastic/metallic.png", "metallic");
+                objectRoughness.loadTexture("images/plastic/roughness.png", "roughness");
+                objectAO.loadTexture("images/plastic/ao.png", "ao");
+            }
+
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Environments"))
+        {
+            if (ImGui::Button("Newport Loft"))
+            {
+                envHDR.loadHDR("images/loft/Newport_Loft_Ref_Flip.hdr", "loft");
+            }
+            if (ImGui::Button("Industrial Hall"))
+            {
+                envHDR.loadHDR("images/industrial-hall/industrial_Env.hdr", "industrial");
+            }
+            if (ImGui::Button("Winter Forest"))
+            {
+                envHDR.loadHDR("images/winter-forest/WinterForest_Ref_Flip.hdr", "forest");
+            }
+
+            ImGui::TreePop();
         }
 
     }
