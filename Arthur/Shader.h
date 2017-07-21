@@ -20,7 +20,16 @@ public:
     //the program ID
     GLuint Program;
     //constructor reads and builds the shader
-    Shader(const GLchar* vertexPath, const GLchar* fragmentPath)
+    Shader()
+    {
+
+    }
+    ~Shader()
+    {
+
+    }
+    // loading vertex and fragment shaders
+    void loadShader(const GLchar* vertexPath, const GLchar* fragmentPath)
     {
         //retrieve the vertex and fragment source code from the address path
         string vertexCode;
