@@ -391,9 +391,7 @@ int main()
     backgroundShader.setMat4("projection", projection);
 
     // then before rendering, configure the viewport to the original framebuffer's screen dimensions
-    int scrWidth, scrHeight;
-    glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
-    glViewport(0, 0, scrWidth, scrHeight);
+    fixScreenSize(window);
 
     // ================================
 
@@ -872,9 +870,7 @@ void guiSetup()
                 pbrInit();
             }
 
-            int scrWidth, scrHeight;
-            glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
-            glViewport(0, 0, scrWidth, scrHeight);
+            fixScreenSize(window);
 
             ImGui::TreePop();
         }
