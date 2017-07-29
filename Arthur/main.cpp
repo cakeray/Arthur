@@ -1171,7 +1171,6 @@ void skyboxInit()
         1.0f, -1.0f,  1.0f
     };
     // Setup skybox VAO
-    //GLuint skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
     glBindVertexArray(skyboxVAO);
