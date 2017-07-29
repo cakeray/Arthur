@@ -41,40 +41,51 @@
 
 // FUNCTION PROTOTYPES
 
-// guiSetup() is self explanatory
-// key_callback() to check for keyboard input and act accordingly
-// scroll_callback(), mouse_button_callback() and mouse_callback() are used to listen for mouse events
-// Do_Movement() to move around the screen if certain keys are pressed
-// loadTexture() is self explanatory
+// Setup functions for various purposes
+// guiSetup() to initialize ImGUI and UI menu options
+// gBufferInit(), ssaoInit() and pbrInit() to initialize framebuffers for the gBuffer, SSAO and PBR pipelines respectively
 void guiSetup();
 void gBufferInit();
 void ssaoInit();
 void pbrInit();
+void skyboxInit();
 void fixScreenSize(GLFWwindow* window);
+
+// Callback functions for user interaction
+// key_callback() for keyboard input
+// scroll_callback(), mouse_button_callback() and mouse_callback() to handle mouse inputs
+// Do_Movement() to collect user input to be processed
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
-//GLuint loadTexture(GLchar* path);
+
+// Shape functions to render Spheres, Quads and Cubes
 void RenderCube();
 void RenderQuad();
 void RenderSphere();
+
+// Computation function to calculate linear interpolation
 GLfloat lerp(GLfloat a, GLfloat b, GLfloat f);
 
 // ================================
 
 // WINDOW PROPERTIES
+// GLFW window creation and screen size specification
+GLFWwindow* window;
 GLuint SCREEN_WIDTH = 1280, SCREEN_HEIGHT = 720;
 
 // ================================
 
 // IMGUI GLOBAL VARIABLES AND DECLARATIONS
+// All variables that are used with ImGUI to control object behavior
 
+// Size of the menu
 int guiWidth = 400;
 
-// Transform variables
+// Transform variables to handle rotation and scaling
 GLfloat scaleFactor = 2.0f;
 glm::vec3 modelScale(2.0f);
 GLfloat rotationAngle = 0.2;
@@ -82,14 +93,7 @@ bool rotX = false;
 bool rotY = true;
 bool rotZ = false;
 
-// Skybox
-GLuint skyboxVAO, skyboxVBO;
-std::string skyboxPath;
-//Skybox cubemap(skyboxVAO,skyboxVBO);
-Skybox cubemap;
-GLuint cubemapTexture;
-
-// Shading
+// Shading variables to control material properties for forward rendering
 //ImVec4 objectColor = ImColor(175, 175, 175);
 ImVec4 ambientMaterial = ImColor(0, 0, 0);
 ImVec4 diffuseMaterial = ImColor(255, 255, 255);
@@ -99,7 +103,7 @@ float shineAmount = 0.25;
 // Lighting
 ImVec4 lightColor = ImColor(255, 255, 255);
 
-// Rendering
+// Rendering flags to select rendering methods and operations to be performed
 bool deferredRendering = false;
 bool forwardRendering = false;
 bool deferredActive = true;
@@ -107,14 +111,14 @@ bool ssaoActive = false;
 bool pbrActive = true;
 
 
-// SSAO
+// SSAO variables
 int num_samples = 64;
 int kernelSize = 64;
 float ssaoRadius = 0.5;
 float ssaoBias = 0.025;
 int power = 2;
 
-// PBR
+// PBR variables
 float metallic = 0.5;
 float roughness = 0.5;
 
@@ -123,10 +127,7 @@ float roughness = 0.5;
 
 // MAIN GLOBAL VARIABLES
 
-// Window
-GLFWwindow* window;
-
-// Camera
+// Camera and mouse control variables
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool keys[1024];
 GLfloat lastX = 400, lastY = 300;
@@ -160,6 +161,12 @@ GLuint brdfLUTTexture;
 Model ourModel;
 GLboolean blinn = false;
 
+// Skybox
+GLuint skyboxVAO, skyboxVBO;
+std::string skyboxPath;
+Skybox cubemap;
+GLuint cubemapTexture;
+
 // Light
 glm::vec3 lightPos(0.0f, 1.0f, 2.5f);
 GLfloat lightIntensity = 0.5f;
@@ -168,11 +175,13 @@ int lightMode = 1;
 int attenuationMode = 1;
 
 // Textures
+// PBR texture variables
 Texture objectAlbedo;
 Texture objectMetallic;
 Texture objectRoughness;
 Texture objectNormal;
 Texture objectAO;
+// Environment map variable
 Texture envHDR;
 
 // Shaders
@@ -254,66 +263,12 @@ int main()
     brdfShader.loadShader("shaders/brdf.vert", "shaders/brdf.frag");
     backgroundShader.loadShader("shaders/background.vert", "shaders/background.frag");
 
-    /*
-    GLfloat skyboxVertices[] = {
-        // Positions          
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-        -1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f
-    };
-    // Setup skybox VAO
-    //GLuint skyboxVAO, skyboxVBO;
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-    glBindVertexArray(0);
+    // configure skybox
+    skyboxInit();
 
     //Setting skybox default path
     skyboxPath = "images/san-francisco";
     cubemapTexture = cubemap.configureSkybox(skyboxPath);
-    */
 
     // Setting default model
     ourModel.loadModel("models/shaderball_small.obj");
@@ -1172,6 +1127,64 @@ void pbrInit()
     RenderQuad();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void skyboxInit()
+{
+    GLfloat skyboxVertices[] = {
+        // Positions          
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f
+    };
+    // Setup skybox VAO
+    //GLuint skyboxVAO, skyboxVBO;
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+    glBindVertexArray(0);
 }
 
 void fixScreenSize(GLFWwindow* window)
