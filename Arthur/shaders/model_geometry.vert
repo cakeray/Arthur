@@ -11,13 +11,16 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform bool invertedNormals;
+
 void main()
 {
-	vec4 worldPos = model * vec4(position, 1.0f);
-	FragPos = worldPos.xyz;
-	gl_Position = projection * view * worldPos;
-	TexCoords = texCoords;
-
-	mat3 normalMatrix = transpose(inverse(mat3(model)));
-	Normal = normalMatrix * normal;
+    vec4 worldPos = view * model * vec4(position, 1.0);
+    FragPos = worldPos.xyz; 
+    TexCoords = texCoords;
+    
+    mat3 normalMatrix = transpose(inverse(mat3(view * model)));
+    Normal = normalMatrix * (invertedNormals ? -normal : normal);
+    
+    gl_Position = projection * worldPos;
 }
